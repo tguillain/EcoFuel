@@ -1,22 +1,69 @@
 class Station {
   final String adresse;
   final String ville;
-  final double? prix;
 
-  Station({required this.adresse, required this.ville, this.prix});
+  final Map<String, double?> prixCarburants;
 
-  factory Station.fromJson(Map<String, dynamic> json) {
-    // Récupération sécurisée du prix (E10 ou Gazole)
-    dynamic prixBrut = json['e10_prix'] ?? json['gazole_prix'];
-    double? prixFinal;
-    if (prixBrut != null) {
-      prixFinal = (prixBrut as num).toDouble();
+  final double distanceKm;
+
+  Station({
+    required this.adresse,
+    required this.ville,
+    required this.prixCarburants,
+    required this.distanceKm,
+  });
+
+  double? getPrix(String carburant) {
+    return prixCarburants[carburant];
+  }
+
+  factory Station.fromJson(Map<String, dynamic> json) {//transforme les données JSON en objet flutter
+    return Station(
+      adresse:
+          json['adresse']?.toString() ??
+          'Adresse inconnue',
+
+      ville:
+          json['ville']?.toString() ??
+          'Ville inconnue',
+
+      distanceKm:
+          (_toDouble(json['distance_m']) ?? 0) /
+          1000,
+
+      prixCarburants: {
+        'Gazole':
+            _toDouble(json['gazole_prix']),
+
+        'SP95':
+            _toDouble(json['sp95_prix']),
+
+        'SP98':
+            _toDouble(json['sp98_prix']),
+
+        'E10':
+            _toDouble(json['e10_prix']),
+
+        'E85':
+            _toDouble(json['e85_prix']),
+
+        'GPLc':
+            _toDouble(json['gplc_prix']),
+      },
+    );
+  }
+
+  static double? _toDouble(dynamic value) {
+    if (value == null) {
+      return null;
     }
 
-    return Station(
-      adresse: json['adresse'] ?? 'Adresse inconnue',
-      ville: json['ville'] ?? '',
-      prix: prixFinal,
+    if (value is num) {
+      return value.toDouble();
+    }
+
+    return double.tryParse(
+      value.toString().replaceAll(',', '.'),
     );
   }
 }
