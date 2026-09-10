@@ -1,32 +1,47 @@
+import 'package:ecofuel/gas_station_list/gas_station_list.dart';
+import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:flutter/material.dart';
 
-class HomePage extends StatefulWidget {
+class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  Color color = Colors.blue;
-
-  void changeColor() {
-    setState(() {
-      color = color == Colors.blue ? Colors.red : Colors.blue;
-    });
-  }
+  static const stations = <GasStation>[
+    GasStation(
+      id: 'intermarche-reze',
+      name: 'Intermarché Rezé',
+      priceInEuros: 1.669,
+      distanceInKm: 1.2,
+      openingHours: '20',
+    ),
+    GasStation(
+      id: 'leclerc-atlantis',
+      name: 'Leclerc Atlantis',
+      priceInEuros: 1.674,
+      distanceInKm: 2.8,
+      openingHours: null,
+    ),
+    GasStation(
+      id: 'total-access-pirmil',
+      name: 'Total Access Pirmil',
+      priceInEuros: 1.712,
+      distanceInKm: 0.6,
+      openingHours: null,
+    ),
+    GasStation(
+      id: 'avia-saint-herblain',
+      name: 'Avia Saint-Herblain',
+      priceInEuros: 1.729,
+      distanceInKm: 4.1,
+      openingHours: null,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        color: color,
-        child: Center(
-          child: ElevatedButton(
-            onPressed: changeColor,
-            child: const Text('Change Color'),
-          ),
-        ),
+    return const Scaffold(
+      body: GasStationListView(
+        stations: stations,
+        highlightedStationId: 'intermarche-reze',
       ),
     );
   }
