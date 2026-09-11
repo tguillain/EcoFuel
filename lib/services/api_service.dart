@@ -17,54 +17,43 @@ class ApiService {
     required int rayonKm,
   }) async {
     try {
-      final bool serviceEnabled =
-          await Geolocator.isLocationServiceEnabled();
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
       if (!serviceEnabled) {
-        throw Exception(
-          'La localisation est désactivée.',
-        );
+        throw Exception('La localisation est désactivée.');
       }
 
-      LocationPermission permission =
-          await Geolocator.checkPermission();
+      LocationPermission permission = await Geolocator.checkPermission();
 
       if (permission == LocationPermission.denied) {
-        permission =
-            await Geolocator.requestPermission();
+        permission = await Geolocator.requestPermission();
       }
 
       if (permission == LocationPermission.denied) {
-        throw Exception(
-          'La permission GPS a été refusée.',
-        );
+        throw Exception('La permission GPS a été refusée.');
       }
 
-      if (permission ==
-          LocationPermission.deniedForever) {
-        throw Exception(
-          'La permission GPS est définitivement refusée.',
-        );
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('La permission GPS est définitivement refusée.');
       }
 
-      final Position position =
-          await Geolocator.getCurrentPosition(
-        desiredAccuracy:
-            LocationAccuracy.high,
+      // Correction du warning deprecated en utilisant LocationSettings
+      const LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 100,
       );
 
-      final double latitude =
-          position.latitude;
-
-      final double longitude =
-          position.longitude;
-
-      debugPrint(
-        'Position : $latitude / $longitude',
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
       );
 
-      final String point =
-          "geom'POINT($longitude $latitude)'";
+      final double latitude = position.latitude;
+
+      final double longitude = position.longitude;
+
+      debugPrint('Position : $latitude / $longitude');
+
+      final String point = "geom'POINT($longitude $latitude)'";
 
       final String where =
           "within_distance("
@@ -78,49 +67,29 @@ class ApiService {
           "distance(geom,$point) "
           "as distance_m";
 
-      final Uri uri =
-          Uri.parse(_baseUrl).replace(
-        queryParameters: {
-          'where': where,
-          'select': select,
-          'limit': '100',
-        },
+      final Uri uri = Uri.parse(_baseUrl).replace(
+        queryParameters: {'where': where, 'select': select, 'limit': '100'},
       );
 
-      debugPrint(
-        'URL : $uri',
-      );
+      debugPrint('URL : $uri');
 
-      final response =
-          await http.get(uri);
+      final response = await http.get(uri);
 
       if (response.statusCode != 200) {
-        debugPrint(
-          response.body,
-        );
+        debugPrint(response.body);
 
-        throw Exception(
-          'Erreur API : ${response.statusCode}',
-        );
+        throw Exception('Erreur API : ${response.statusCode}');
       }
 
-      final Map<String, dynamic> data =
-          jsonDecode(response.body);
+      final Map<String, dynamic> data = jsonDecode(response.body);
 
-      final List<dynamic> results =
-          data['results'] ?? [];
+      final List<dynamic> results = data['results'] ?? [];
 
       return results
-          .map(
-            (item) => Station.fromJson(
-              item as Map<String, dynamic>,
-            ),
-          )
+          .map((item) => Station.fromJson(item as Map<String, dynamic>))
           .toList();
     } catch (e) {
-      debugPrint(
-        'Erreur : $e',
-      );
+      debugPrint('Erreur : $e');
 
       rethrow;
     }
