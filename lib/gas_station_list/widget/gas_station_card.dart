@@ -51,20 +51,31 @@ class GasStationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-
     return Card(
       elevation: 5,
-      color: isHighlighted ? Color.fromRGBO(10, 132, 255, 1) : null,
+      color: isHighlighted
+          ? Color.fromRGBO(10, 132, 255, 1)
+          : Color.fromRGBO(255, 255, 255, 1),
       shadowColor: isHighlighted ? Color.fromRGBO(10, 132, 255, 1) : null,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(20)),
+        borderRadius: BorderRadius.all(Radius.circular(22)),
       ),
       child: ListTile(
-        textColor: isHighlighted ? colors.onPrimary : null,
-        title: Text(station.name),
-        subtitle: Text(_subtitle),
-        trailing: Text('${station.priceInEuros} €/L'),
+        textColor: isHighlighted
+            ? Color.fromRGBO(255, 255, 255, 1)
+            : Color.fromRGBO(14, 18, 17, 1),
+        title: Text(
+          station.name,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+        ),
+        subtitle: Text(
+          _subtitle,
+          style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 13),
+        ),
+        trailing: Text(
+          '${station.priceInEuros}',
+          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 26),
+        ),
         onTap: onTap,
       ),
     );
