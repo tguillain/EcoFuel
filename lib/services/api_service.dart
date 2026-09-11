@@ -7,50 +7,91 @@ import 'package:http/http.dart' as http;
 import '../models/station.dart';
 
 class ApiService {
-  static Future<List<Station>> fetchNearbyStations() async {
+  static const String _baseUrl =
+      'https://data.economie.gouv.fr/api/explore/v2.1/'
+      'catalog/datasets/'
+      'prix-des-carburants-en-france-flux-instantane-v2/'
+      'records';
+
+  static Future<List<Station>> fetchNearbyStations({
+    required int rayonKm,
+  }) async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
       if (!serviceEnabled) {
-        debugPrint('Le service GPS est désactivé.');
-        return [];
+        throw Exception('La localisation est désactivée.');
       }
 
       LocationPermission permission = await Geolocator.checkPermission();
+
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          debugPrint('Permissions GPS refusées.');
-          return [];
-        }
+      }
+
+      if (permission == LocationPermission.denied) {
+        throw Exception('La permission GPS a été refusée.');
       }
 
       if (permission == LocationPermission.deniedForever) {
-        debugPrint('Permissions GPS refusées définitivement.');
-        return [];
+        throw Exception('La permission GPS est définitivement refusée.');
       }
 
-      // 3. Récupérer la vraie position actuelle
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      // Correction du warning deprecated en utilisant LocationSettings
+      const LocationSettings locationSettings = LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 100,
       );
 
-      double lat = position.latitude;
-      double lon = position.longitude;
-
-      final url = Uri.parse(
-        'https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/prix-des-carburants-en-france-flux-instantane-v2/records?where=within_distance(geom,geom\'POINT($lon $lat)\',5km)',
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: locationSettings,
       );
 
-      final response = await http.get(url);
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        List results = data['results'] ?? [];
-        return results.map((jsonItem) => Station.fromJson(jsonItem)).toList();
+      final double latitude = position.latitude;
+
+      final double longitude = position.longitude;
+
+      debugPrint('Position : $latitude / $longitude');
+
+      final String point = "geom'POINT($longitude $latitude)'";
+
+      final String where =
+          "within_distance("
+          "geom,"
+          "$point,"
+          "${rayonKm}km"
+          ")";
+
+      final String select =
+          "*, "
+          "distance(geom,$point) "
+          "as distance_m";
+
+      final Uri uri = Uri.parse(_baseUrl).replace(
+        queryParameters: {'where': where, 'select': select, 'limit': '100'},
+      );
+
+      debugPrint('URL : $uri');
+
+      final response = await http.get(uri);
+
+      if (response.statusCode != 200) {
+        debugPrint(response.body);
+
+        throw Exception('Erreur API : ${response.statusCode}');
       }
+
+      final Map<String, dynamic> data = jsonDecode(response.body);
+
+      final List<dynamic> results = data['results'] ?? [];
+
+      return results
+          .map((item) => Station.fromJson(item as Map<String, dynamic>))
+          .toList();
     } catch (e) {
-      debugPrint('Erreur lors de la récupération GPS ou API : $e');
-    }
+      debugPrint('Erreur : $e');
 
-    return [];
+      rethrow;
+    }
   }
 }
