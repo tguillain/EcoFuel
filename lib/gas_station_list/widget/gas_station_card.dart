@@ -90,28 +90,24 @@ class GasStationCard extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 13),
         ),
         isThreeLine: true,
-        trailing: Column(
-          mainAxisSize: MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              price != null ? _priceFormat.format(price) : '—',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 26,
-                color: foreground,
+        trailing: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: price != null ? _priceFormat.format(price) : '—',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 26,
+                ),
               ),
-            ),
-            Text(
-              price != null ? '€/L' : 'indisponible',
-              style: TextStyle(
-                fontWeight: FontWeight.w500,
-                fontSize: 12,
-                color: foreground,
+              const TextSpan(
+                text: ' €/L',
+                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
               ),
-            ),
-          ],
+            ],
+          ),
+          maxLines: 1,
+          style: TextStyle(color: foreground),
         ),
         onTap: onTap,
       ),

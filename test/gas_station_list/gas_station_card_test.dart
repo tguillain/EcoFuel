@@ -1,5 +1,6 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
+import 'package:ecofuel/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,7 +8,12 @@ import 'gas_station_fixture.dart';
 
 void main() {
   Future<void> pumpCard(WidgetTester tester, Widget card) {
-    return tester.pumpWidget(MaterialApp(home: Scaffold(body: card)));
+    return tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(body: card),
+      ),
+    );
   }
 
   group('GasStationCard', () {
@@ -29,8 +35,7 @@ void main() {
       expect(find.text('1 rue de la Paix'), findsOneWidget);
       expect(find.textContaining('Nantes'), findsOneWidget);
       expect(find.textContaining('1,2 km'), findsOneWidget);
-      expect(find.text('1,669'), findsOneWidget);
-      expect(find.text('€/L'), findsOneWidget);
+      expect(find.text('1,669 €/L', findRichText: true), findsOneWidget);
     });
 
     testWidgets('annonce une station ouverte 24h/24', (tester) async {
@@ -95,8 +100,7 @@ void main() {
         ),
       );
 
-      expect(find.text('—'), findsOneWidget);
-      expect(find.text('indisponible'), findsOneWidget);
+      expect(find.text('— €/L', findRichText: true), findsOneWidget);
     });
 
     testWidgets('met en avant la variante highlighted', (tester) async {
@@ -119,6 +123,36 @@ void main() {
       final standard = tester.widget<Card>(find.byType(Card)).color;
 
       expect(highlighted, isNot(standard));
+    });
+
+    // ListTile plafonne son `trailing` à 56 px de haut (mode non dense) : un
+    // prix sur deux lignes tenait de justesse avec la police de repli des tests
+    // mais débordait avec Archivo chargée dans l'app. On garde donc une marge.
+    testWidgets('garde un prix assez court pour le gabarit du ListTile', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await pumpCard(
+        tester,
+        GasStationCard.standard(
+          buildGasStation(id: 'station', price: 1.669, distanceInKm: 1.2),
+          fuel: FuelType.e10,
+        ),
+      );
+
+      final trailing = tester.getSize(
+        find
+            .descendant(
+              of: find.byType(ListTile),
+              matching: find.byType(RichText),
+            )
+            .last,
+      );
+
+      expect(trailing.height, lessThan(40));
     });
   });
 }
