@@ -91,7 +91,24 @@ class _FilterChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChoiceChip(
-      label: Text(label),
+      // Le chip est étiré par l'Expanded de sa rangée : le Center recentre le
+      // libellé, et le FittedBox le réduit plutôt que de le tronquer sur les
+      // écrans étroits ou en grande taille de texte.
+      label: Center(
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            label,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+      ),
+      // La coche des chips sélectionnés décalerait le libellé vers la droite :
+      // la sélection reste lisible par la couleur de fond.
+      showCheckmark: false,
+      labelPadding: EdgeInsets.zero,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
       selected: isSelected,
       onSelected: (_) => onSelected(),
     );
@@ -101,17 +118,17 @@ class _FilterChip extends StatelessWidget {
 class _FilterRow extends StatelessWidget {
   const _FilterRow({required this.children});
 
+  static const double _chipGap = 6;
+
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: GasStationFilterBar._rowHeight,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: children.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 8),
-        itemBuilder: (context, index) => children[index],
+      child: Row(
+        spacing: _chipGap,
+        children: [for (final child in children) Expanded(child: child)],
       ),
     );
   }
