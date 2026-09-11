@@ -1,6 +1,6 @@
+import 'package:ecofuel/gas_station_list/gas_station_list_page.dart';
+import 'package:ecofuel/theme/app_theme.dart';
 import 'package:flutter/material.dart';
-
-import 'screens/stations_screen.dart';
 
 void main() {
   runApp(const EcoFuelApp());
@@ -14,13 +14,8 @@ class EcoFuelApp extends StatelessWidget {
     return MaterialApp(
       title: 'EcoFuel',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-        ),
-        useMaterial3: true,
-      ),
-      home: const StationsScreen(),
+      theme: AppTheme.light,
+      home: const GasStationListPage(),
     );
   }
 }
