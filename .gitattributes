@@ -1,0 +1,24 @@
+# Normalise les fins de ligne : LF dans le dépôt ET dans le répertoire de
+# travail. Sans cela, les fichiers générés par Flutter (LF) entrent en conflit
+# permanent avec le contenu commité (CRLF) sur les postes Windows.
+* text=auto eol=lf
+
+# Scripts Windows : doivent garder des CRLF pour rester exécutables.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binaires : jamais de conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.jar binary
+*.keystore binary
+*.jks binary

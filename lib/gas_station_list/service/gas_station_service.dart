@@ -2,12 +2,16 @@ import 'dart:convert';
 
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
+import 'package:ecofuel/gas_station_list/service/user_locator.dart';
 import 'package:flutter/foundation.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 class GasStationService {
-  const GasStationService();
+  /// Le locator n'existe que pour rendre la position injectable : en production
+  /// le GPS suffit, un [FixedUserLocator] permet de s'en passer ailleurs.
+  const GasStationService([this._locator = const GeolocatorUserLocator()]);
+
+  final UserLocator _locator;
 
   static const String _baseUrl =
       'https://data.economie.gouv.fr/api/explore/v2.1/'
@@ -17,16 +21,11 @@ class GasStationService {
 
   static const int _resultLimit = 100;
 
-  static const LocationSettings _locationSettings = LocationSettings(
-    accuracy: LocationAccuracy.high,
-    distanceFilter: 100,
-  );
-
   Future<List<GasStation>> fetchNearbyStations({
     required SearchRadius radius,
   }) async {
-    final position = await _currentPosition();
-    final uri = _buildUri(position: position, radius: radius);
+    final coordinates = await _locator.currentCoordinates();
+    final uri = _buildUri(coordinates: coordinates, radius: radius);
 
     debugPrint('URL : $uri');
 
@@ -46,32 +45,12 @@ class GasStationService {
         .toList();
   }
 
-  Future<Position> _currentPosition() async {
-    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-
-    if (!serviceEnabled) {
-      throw Exception('La localisation est désactivée.');
-    }
-
-    var permission = await Geolocator.checkPermission();
-
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-
-    if (permission == LocationPermission.denied) {
-      throw Exception('La permission GPS a été refusée.');
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('La permission GPS est définitivement refusée.');
-    }
-
-    return Geolocator.getCurrentPosition(locationSettings: _locationSettings);
-  }
-
-  Uri _buildUri({required Position position, required SearchRadius radius}) {
-    final point = "geom'POINT(${position.longitude} ${position.latitude})'";
+  Uri _buildUri({
+    required UserCoordinates coordinates,
+    required SearchRadius radius,
+  }) {
+    final point =
+        "geom'POINT(${coordinates.longitude} ${coordinates.latitude})'";
 
     return Uri.parse(_baseUrl).replace(
       queryParameters: {

@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "EcoFuel · GPS réel",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      "name": "EcoFuel · Position figée (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "--dart-define=FIXED_LATITUDE=47.2184",
+        "--dart-define=FIXED_LONGITUDE=-1.5536"
+      ]
+    },
+    {
+      "name": "EcoFuel · Position perso (env/location.json)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "toolArgs": [
+        "--dart-define-from-file=env/location.json"
+      ]
+    }
+  ]
+}
