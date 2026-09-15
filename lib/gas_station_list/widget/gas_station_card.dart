@@ -39,6 +39,10 @@ class GasStationCard extends StatelessWidget {
     onTap: onTap,
   );
 
+  static const double _radius = 22;
+  static const double _padding = 18;
+  static const double _gap = 12;
+
   static final NumberFormat _distanceFormat = NumberFormat('0.#', 'fr_FR');
   static final NumberFormat _priceFormat = NumberFormat('0.000', 'fr_FR');
 
@@ -47,22 +51,21 @@ class GasStationCard extends StatelessWidget {
   final bool isHighlighted;
   final VoidCallback? onTap;
 
+  /// Le design réunit ville, distance et horaire sur une seule ligne
+  /// secondaire, séparées par des points médians.
   String get _subtitle {
-    final distance = '${_distanceFormat.format(station.distanceInKm)} km';
+    final parts = [
+      station.city,
+      '${_distanceFormat.format(station.distanceInKm)} km',
+      if (station.isOpen24h)
+        '24h/24'
+      else if (station.closingTime != null)
+        'ouvert jusqu\'à ${station.closingTime}'
+      else if (station.isClosed)
+        'fermé',
+    ];
 
-    if (station.isOpen24h) {
-      return '$distance - 24h/24';
-    }
-
-    if (station.closingTime != null) {
-      return '$distance - ouvert jusqu\'à ${station.closingTime}';
-    }
-
-    if (station.isClosed) {
-      return '$distance - fermé';
-    }
-
-    return distance;
+    return parts.join(' · ');
   }
 
   @override
@@ -72,44 +75,97 @@ class GasStationCard extends StatelessWidget {
         ? AppColors.onPrimary
         : AppColors.onSurface;
 
-    return Card(
-      elevation: 5,
-      color: isHighlighted ? AppColors.primary : AppColors.surface,
-      shadowColor: isHighlighted ? AppColors.primary : null,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(22)),
-      ),
-      child: ListTile(
-        textColor: foreground,
-        title: Text(
-          station.address,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 17),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: _gap),
+      // Le DecoratedBox ne porte que l'ombre, aux décalages du design que
+      // `Material.elevation` ne sait pas exprimer ; le Material peint le fond
+      // et découpe l'ondulation de l'InkWell.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(_radius),
+          boxShadow: [
+            isHighlighted
+                ? const BoxShadow(
+                    color: Color.fromRGBO(10, 132, 255, .9),
+                    offset: Offset(0, 14),
+                    blurRadius: 28,
+                    spreadRadius: -16,
+                  )
+                : const BoxShadow(
+                    color: Color.fromRGBO(14, 18, 17, .6),
+                    offset: Offset(0, 8),
+                    blurRadius: 20,
+                    spreadRadius: -16,
+                  ),
+          ],
         ),
-        subtitle: Text(
-          '${station.city}\n$_subtitle',
-          style: const TextStyle(fontWeight: FontWeight.w400, fontSize: 13),
-        ),
-        isThreeLine: true,
-        trailing: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: price != null ? _priceFormat.format(price) : '—',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 26,
-                ),
+        child: Material(
+          color: isHighlighted ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(_radius),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(_padding),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 4,
+                      children: [
+                        Text(
+                          station.address,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: foreground,
+                          ),
+                        ),
+                        Text(
+                          _subtitle,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: isHighlighted
+                                ? AppColors.onPrimary.withValues(alpha: .85)
+                                : AppColors.onSurfaceMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: price != null
+                              ? _priceFormat.format(price)
+                              : '—',
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 26 * -0.03,
+                          ),
+                        ),
+                        const TextSpan(
+                          text: ' €/L',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    maxLines: 1,
+                    style: TextStyle(color: foreground),
+                  ),
+                ],
               ),
-              const TextSpan(
-                text: ' €/L',
-                style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
-              ),
-            ],
+            ),
           ),
-          maxLines: 1,
-          style: TextStyle(color: foreground),
         ),
-        onTap: onTap,
       ),
     );
   }

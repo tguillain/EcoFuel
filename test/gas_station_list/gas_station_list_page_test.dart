@@ -101,7 +101,7 @@ void main() {
       expect(find.byType(GasStationCard), findsOneWidget);
       expect(service.callCount, 1);
 
-      await tester.tap(find.widgetWithText(ChoiceChip, 'SP98'));
+      await tester.tap(find.text('SP98'));
       await tester.pumpAndSettle();
 
       expect(service.callCount, 1);
@@ -119,7 +119,9 @@ void main() {
       await pumpPage(tester, service);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(ChoiceChip, '25 km'));
+      await tester.tap(find.byIcon(Icons.my_location_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('25 km'));
       await tester.pumpAndSettle();
 
       expect(service.callCount, 2);

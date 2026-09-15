@@ -2,7 +2,7 @@ import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 
 enum GasStationSortCriterion {
-  price('Prix'),
+  price('Prix croissant'),
   distance('Distance');
 
   const GasStationSortCriterion(this.label);
