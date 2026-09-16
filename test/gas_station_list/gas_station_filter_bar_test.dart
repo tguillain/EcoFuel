@@ -64,17 +64,24 @@ void main() {
       const width = 390.0;
       await pumpFilterBar(tester, width: width);
 
+      // Les libellés sont tirés des énumérations : ajouter un critère, un
+      // carburant ou un rayon ne doit pas demander de retoucher ce test.
       for (final row in [
-        ['Prix', 'Distance'],
-        ['Gazole', 'E10'],
-        ['5 km', '50 km'],
+        [
+          GasStationSortCriterion.values.first.label,
+          GasStationSortCriterion.values.last.label,
+        ],
+        [FuelType.values.first.label, FuelType.values.last.label],
+        [SearchRadius.values.first.label, SearchRadius.values.last.label],
       ]) {
         final first = chipRect(tester, row.first);
         final last = chipRect(tester, row.last);
 
-        // La barre garde 14 px de marge de chaque côté.
-        expect(first.left, 14);
-        expect(last.right, width - 14);
+        // La barre garde 14 px de marge de chaque côté. Le partage de la
+        // largeur entre chips laisse une erreur d'arrondi de l'ordre de
+        // 10^-13, sans conséquence à l'affichage.
+        expect(first.left, moreOrLessEquals(14));
+        expect(last.right, moreOrLessEquals(width - 14));
       }
     });
 

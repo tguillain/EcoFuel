@@ -119,7 +119,11 @@ class _GasStationListPageState
   }
 
   /// Stations proposant le carburant sélectionné,
-  /// triées selon Prix ou Distance.
+  /// triées selon le critère choisi.
+  ///
+  /// Certains critères ne gardent que les meilleures :
+  /// la troncature suit le tri, sinon on couperait
+  /// dans une liste encore en désordre.
   List<GasStation>
       get _visibleStations {
     final List<GasStation> stations =
@@ -140,7 +144,18 @@ class _GasStationListPageState
       ),
     );
 
-    return stations;
+    final int? maxResults =
+        _sortCriterion.maxResults;
+
+    if (maxResults == null ||
+        stations.length <=
+            maxResults) {
+      return stations;
+    }
+
+    return stations
+        .take(maxResults)
+        .toList();
   }
 
   /// Changement du carburant.
