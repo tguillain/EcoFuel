@@ -339,6 +339,133 @@ void main() {
           );
         },
       );
+
+      testWidgets(
+        'recharge les stations chaque minute sans indicateur',
+        (tester) async {
+          final service =
+              _FakeGasStationService(
+            stations: [
+              buildGasStation(
+                id: 'a',
+                price: 1.70,
+                distanceInKm: 1,
+              ),
+            ],
+          );
+
+          await pumpPage(tester, service);
+          await tester.pumpAndSettle();
+
+          expect(service.callCount, 1);
+
+          // L'API renvoie une station de plus au passage suivant.
+          service.stations = [
+            ...service.stations,
+            buildGasStation(
+              id: 'b',
+              price: 1.65,
+              distanceInKm: 3,
+            ),
+          ];
+
+          await tester.pump(
+            const Duration(minutes: 1),
+          );
+
+          // Le rafraîchissement est silencieux : la liste reste
+          // à l'écran pendant l'appel, sans tourniquet.
+          expect(
+            find.byType(
+              CircularProgressIndicator,
+            ),
+            findsNothing,
+          );
+
+          await tester.pumpAndSettle();
+
+          expect(service.callCount, 2);
+
+          expect(
+            find.byType(
+              GasStationCard,
+            ),
+            findsNWidgets(2),
+          );
+        },
+      );
+
+      testWidgets(
+        'garde la liste quand le rafraîchissement échoue',
+        (tester) async {
+          final service =
+              _FakeGasStationService(
+            stations: [
+              buildGasStation(
+                id: 'a',
+                price: 1.70,
+                distanceInKm: 1,
+              ),
+            ],
+          );
+
+          await pumpPage(tester, service);
+          await tester.pumpAndSettle();
+
+          service.error = Exception(
+            'Erreur API : 503',
+          );
+
+          await tester.pump(
+            const Duration(minutes: 1),
+          );
+
+          await tester.pumpAndSettle();
+
+          // L'échec de fond ne vide pas l'écran et n'affiche
+          // pas de message d'erreur.
+          expect(
+            find.byType(
+              GasStationCard,
+            ),
+            findsOneWidget,
+          );
+
+          expect(
+            find.textContaining(
+              'Erreur API',
+            ),
+            findsNothing,
+          );
+        },
+      );
+
+      testWidgets(
+        'affiche l\'heure du dernier chargement',
+        (tester) async {
+          await pumpPage(
+            tester,
+            _FakeGasStationService(
+              stations: [
+                buildGasStation(
+                  id: 'a',
+                  price: 1.70,
+                  distanceInKm: 1,
+                ),
+              ],
+            ),
+          );
+
+          await tester.pumpAndSettle();
+
+          expect(
+            find.textContaining(
+              'Mis à jour à',
+            ),
+            findsOneWidget,
+          );
+        },
+      );
     },
   );
 }

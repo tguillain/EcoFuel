@@ -50,6 +50,12 @@ class _GasStationMapState
 
   String? _routeError;
 
+  /// En deçà de ce seuil, un déplacement relève de la dérive
+  /// du GPS. Recadrer la carte ou effacer l'itinéraire à chaque
+  /// rafraîchissement automatique la rendrait inutilisable.
+  static const double
+      _significantMoveInMetres = 200;
+
   /// Position GPS de l'utilisateur.
   LatLng get _userPosition {
     return LatLng(
@@ -160,16 +166,10 @@ class _GasStationMapState
         widget.radius;
 
     final bool positionChanged =
-        oldWidget.userCoordinates.latitude !=
-                widget
-                    .userCoordinates
-                    .latitude ||
-            oldWidget
-                    .userCoordinates
-                    .longitude !=
-                widget
-                    .userCoordinates
-                    .longitude;
+        _hasMovedSignificantly(
+      oldWidget.userCoordinates,
+      widget.userCoordinates,
+    );
 
     final bool fuelChanged =
         oldWidget.fuel != widget.fuel;
@@ -196,6 +196,30 @@ class _GasStationMapState
         },
       );
     }
+  }
+
+  /// Vrai si l'utilisateur s'est vraiment déplacé, par
+  /// opposition au tremblement de quelques mètres que renvoie
+  /// un GPS immobile.
+  bool _hasMovedSignificantly(
+    UserCoordinates from,
+    UserCoordinates to,
+  ) {
+    final double metres =
+        const Distance().as(
+      LengthUnit.Meter,
+      LatLng(
+        from.latitude,
+        from.longitude,
+      ),
+      LatLng(
+        to.latitude,
+        to.longitude,
+      ),
+    );
+
+    return metres >=
+        _significantMoveInMetres;
   }
 
   /// Recadre la carte sur l'utilisateur et ses stations.

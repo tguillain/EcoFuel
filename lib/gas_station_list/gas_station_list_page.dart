@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
@@ -31,7 +33,17 @@ class GasStationListPage
 }
 
 class _GasStationListPageState
-    extends State<GasStationListPage> {
+    extends State<GasStationListPage>
+    with WidgetsBindingObserver {
+  /// Période du rafraîchissement automatique.
+  ///
+  /// Les prix ne bougent que quelques fois par jour, mais la
+  /// position de l'utilisateur change en permanence : c'est
+  /// surtout elle que cette cadence suit.
+  static const Duration
+      _refreshInterval =
+      Duration(minutes: 1);
+
   List<GasStation> _stations = [];
 
   UserCoordinates?
@@ -54,19 +66,82 @@ class _GasStationListPageState
 
   String? _errorMessage;
 
+  Timer? _refreshTimer;
+
+  /// Heure du dernier chargement réussi.
+  DateTime? _lastUpdatedAt;
+
   @override
   void initState() {
     super.initState();
 
+    WidgetsBinding.instance
+        .addObserver(this);
+
     _loadStations();
+
+    _startAutoRefresh();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+
+    WidgetsBinding.instance
+        .removeObserver(this);
+
+    super.dispose();
+  }
+
+  /// Une application en arrière-plan n'a personne pour lire
+  /// la liste : continuer à interroger l'API y dépenserait
+  /// batterie et données pour rien.
+  @override
+  void didChangeAppLifecycleState(
+    AppLifecycleState state,
+  ) {
+    if (state ==
+        AppLifecycleState.resumed) {
+      _startAutoRefresh();
+
+      _loadStations(silent: true);
+
+      return;
+    }
+
+    _refreshTimer?.cancel();
+
+    _refreshTimer = null;
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+
+    _refreshTimer =
+        Timer.periodic(
+      _refreshInterval,
+      (_) => _loadStations(
+        silent: true,
+      ),
+    );
   }
 
   /// Charge la position puis les stations.
-  Future<void> _loadStations() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  ///
+  /// Un rafraîchissement [silent] n'affiche ni indicateur ni
+  /// erreur : il part tout seul chaque minute, et remplacer la
+  /// liste par un tourniquet ou un message d'échec à chaque
+  /// passage serait pire que de garder à l'écran les dernières
+  /// données connues.
+  Future<void> _loadStations({
+    bool silent = false,
+  }) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+    }
 
     try {
       final UserCoordinates coordinates =
@@ -92,9 +167,21 @@ class _GasStationListPageState
 
         _stations =
             stations;
+
+        _lastUpdatedAt =
+            DateTime.now();
+
+        _errorMessage = null;
       });
     } catch (error) {
       if (!mounted) {
+        return;
+      }
+
+      // Un échec de fond ne doit rien casser à l'écran : la
+      // liste précédente reste affichée jusqu'au prochain
+      // passage.
+      if (silent) {
         return;
       }
 
@@ -109,7 +196,7 @@ class _GasStationListPageState
             );
       });
     } finally {
-      if (mounted) {
+      if (mounted && !silent) {
         setState(() {
           _isLoading =
               false;
@@ -297,6 +384,8 @@ class _GasStationListPageState
               _selectedFuel,
           radius:
               _selectedRadius,
+          lastUpdatedAt:
+              _lastUpdatedAt,
           displayMode:
               _displayMode,
           onDisplayModeChanged:
@@ -425,6 +514,7 @@ class _TopBar
     required this.stationCount,
     required this.fuel,
     required this.radius,
+    required this.lastUpdatedAt,
     required this.displayMode,
     required this.onDisplayModeChanged,
   });
@@ -433,10 +523,36 @@ class _TopBar
   final FuelType fuel;
   final SearchRadius radius;
 
+  /// Heure du dernier chargement réussi,
+  /// `null` tant qu'il n'y en a pas eu.
+  final DateTime? lastUpdatedAt;
+
   final _DisplayMode displayMode;
 
   final ValueChanged<_DisplayMode>
       onDisplayModeChanged;
+
+  /// Rend visible le rafraîchissement automatique : sans cette
+  /// heure, rien ne distingue une liste fraîche d'une liste figée.
+  String get _updatedLabel {
+    final DateTime? updatedAt =
+        lastUpdatedAt;
+
+    if (updatedAt == null) {
+      return '';
+    }
+
+    final String hour = updatedAt.hour
+        .toString()
+        .padLeft(2, '0');
+
+    final String minute = updatedAt
+        .minute
+        .toString()
+        .padLeft(2, '0');
+
+    return 'Mis à jour à $hour:$minute';
+  }
 
   @override
   Widget build(
@@ -472,6 +588,29 @@ class _TopBar
               ),
             ],
           ),
+
+          if (_updatedLabel.isNotEmpty)
+            Align(
+              alignment:
+                  Alignment.centerRight,
+              child: Padding(
+                padding:
+                    const EdgeInsets.only(
+                  top: 2,
+                ),
+                child: Text(
+                  _updatedLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color:
+                        Theme.of(context)
+                            .colorScheme
+                            .onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+
           const SizedBox(
             height: 10,
           ),
