@@ -1,3 +1,4 @@
+import 'package:ecofuel/theme/app_colors.dart';
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
 import 'package:ecofuel/theme/app_theme.dart';
@@ -36,6 +37,51 @@ void main() {
       expect(find.textContaining('Nantes'), findsOneWidget);
       expect(find.textContaining('1,2 km'), findsOneWidget);
       expect(find.text('1,669 €/L', findRichText: true), findsOneWidget);
+    });
+
+    // Le fichier de l'État ne porte pas d'enseigne : quand une source tierce
+    // la fournit, elle prend le titre. La commune reste en ligne secondaire,
+    // l'adresse complète appartenant à la fiche de la station.
+    testWidgets('titre par l\'enseigne quand elle est connue', (tester) async {
+      await pumpCard(
+        tester,
+        GasStationCard.standard(
+          buildGasStation(
+            id: 'station',
+            price: 1.669,
+            distanceInKm: 1.2,
+            address: '205 ROUTE DE VANNES',
+            city: 'Orvault',
+            brand: 'Intermarché',
+          ),
+          fuel: FuelType.e10,
+        ),
+      );
+
+      expect(find.text('Intermarché'), findsOneWidget);
+      expect(find.textContaining('Orvault'), findsOneWidget);
+      expect(find.textContaining('ROUTE DE VANNES'), findsNothing);
+    });
+
+    // Sans enseigne, l'adresse fait office de titre — remise en forme, la
+    // casse du flux de l'État étant irrégulière.
+    testWidgets('retombe sur l\'adresse remise en forme', (tester) async {
+      await pumpCard(
+        tester,
+        GasStationCard.standard(
+          buildGasStation(
+            id: 'station',
+            price: 1.669,
+            distanceInKm: 1.2,
+            address: '205 ROUTE DE VANNES',
+            city: 'Orvault',
+          ),
+          fuel: FuelType.e10,
+        ),
+      );
+
+      expect(find.text('205 route de Vannes'), findsOneWidget);
+      expect(find.textContaining('Orvault'), findsOneWidget);
     });
 
     testWidgets('annonce une station ouverte 24h/24', (tester) async {
@@ -114,21 +160,23 @@ void main() {
         tester,
         GasStationCard.highlighted(station, fuel: FuelType.e10),
       );
-      final highlighted = tester.widget<Card>(find.byType(Card)).color;
+      final highlighted = tester
+          .widget<Material>(find.byType(Material).last)
+          .color;
 
       await pumpCard(
         tester,
         GasStationCard.standard(station, fuel: FuelType.e10),
       );
-      final standard = tester.widget<Card>(find.byType(Card)).color;
+      final standard = tester.widget<Material>(find.byType(Material).last).color;
 
-      expect(highlighted, isNot(standard));
+      expect(highlighted, AppColors.primary);
+      expect(standard, AppColors.surface);
     });
 
-    // ListTile plafonne son `trailing` à 56 px de haut (mode non dense) : un
-    // prix sur deux lignes tenait de justesse avec la police de repli des tests
-    // mais débordait avec Archivo chargée dans l'app. On garde donc une marge.
-    testWidgets('garde un prix assez court pour le gabarit du ListTile', (
+    // Le prix occupe la largeur restante après l'adresse : il doit tenir sur
+    // une seule ligne au gabarit d'écran du design, sans déborder.
+    testWidgets('garde le prix sur une ligne au gabarit du design', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(390, 844);
@@ -138,21 +186,23 @@ void main() {
       await pumpCard(
         tester,
         GasStationCard.standard(
-          buildGasStation(id: 'station', price: 1.669, distanceInKm: 1.2),
+          buildGasStation(
+            id: 'station',
+            price: 1.669,
+            distanceInKm: 1.2,
+            address: 'Une adresse particulièrement longue pour la carte',
+          ),
           fuel: FuelType.e10,
         ),
       );
 
-      final trailing = tester.getSize(
-        find
-            .descendant(
-              of: find.byType(ListTile),
-              matching: find.byType(RichText),
-            )
-            .last,
+      expect(tester.takeException(), isNull);
+
+      final price = tester.renderObject<RenderBox>(
+        find.byType(RichText).last,
       );
 
-      expect(trailing.height, lessThan(40));
+      expect(price.size.height, lessThan(40));
     });
   });
 }

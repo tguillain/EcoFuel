@@ -4,11 +4,14 @@ import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
+import 'package:ecofuel/gas_station_list/model/gas_station_group.dart';
 import 'package:ecofuel/gas_station_list/service/gas_station_service.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_filter_bar.dart';
+import 'package:ecofuel/gas_station_list/widget/gas_station_list_header.dart';
 import 'package:ecofuel/gas_station_list/widget/map/gas_station_map.dart';
+import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
 enum _DisplayMode {
@@ -32,18 +35,26 @@ class GasStationListPage
           _GasStationListPageState();
 }
 
-class _GasStationListPageState
-    extends State<GasStationListPage>
+class _GasStationListPageState extends State<GasStationListPage>
     with WidgetsBindingObserver {
   /// Période du rafraîchissement automatique.
   ///
-  /// Les prix ne bougent que quelques fois par jour, mais la
-  /// position de l'utilisateur change en permanence : c'est
-  /// surtout elle que cette cadence suit.
-  static const Duration
-      _refreshInterval =
-      Duration(minutes: 1);
+  /// Les prix ne bougent que quelques fois par jour, mais la position de
+  /// l'utilisateur change en permanence : c'est surtout elle que cette cadence
+  /// suit.
+  static const Duration _refreshInterval = Duration(minutes: 1);
 
+  /// Métriques de l'artboard « Liste seule · cartes + filtres » : le panneau
+  /// d'en-tête est blanc sur le fond de l'écran, la liste respire davantage.
+  static const EdgeInsets _panelPadding = EdgeInsets.fromLTRB(20, 18, 20, 14);
+  static const EdgeInsets _listPadding = EdgeInsets.symmetric(
+    horizontal: 16,
+    vertical: 14,
+  );
+  static const double _panelGap = 14;
+
+  /// Stations telles que renvoyées par l'API : le filtre carburant et le tri
+  /// sont appliqués à l'affichage, seul un changement de rayon relance l'appel.
   List<GasStation> _stations = [];
 
   UserCoordinates?
@@ -205,44 +216,44 @@ class _GasStationListPageState
     }
   }
 
-  /// Stations proposant le carburant sélectionné,
-  /// triées selon le critère choisi.
+  /// Stations proposant le carburant sélectionné, triées puis regroupées par
+  /// site — un site déclarant plusieurs points de distribution ne compte que
+  /// pour une carte.
   ///
-  /// Certains critères ne gardent que les meilleures :
-  /// la troncature suit le tri, sinon on couperait
-  /// dans une liste encore en désordre.
-  List<GasStation>
-      get _visibleStations {
-    final List<GasStation> stations =
-        _stations
-            .where(
-              (station) =>
-                  station.priceFor(
-                    _selectedFuel,
-                  ) !=
-                  null,
-            )
-            .toList();
+  /// Certains critères ne gardent que les meilleurs : la troncature suit le
+  /// regroupement, sinon deux portiques d'un même site consommeraient deux
+  /// places du Top 10.
+  List<GasStationGroup> get _visibleGroups {
+    final stations = _stations
+        .where((station) => station.priceFor(_selectedFuel) != null)
+        .toList();
 
-    stations.sort(
-      _sortCriterion
-          .comparatorFor(
-        _selectedFuel,
-      ),
-    );
+    stations.sort(_sortCriterion.comparatorFor(_selectedFuel));
 
-    final int? maxResults =
-        _sortCriterion.maxResults;
+    final groups = GasStationGrouper.group(stations, fuel: _selectedFuel);
+    final maxResults = _sortCriterion.maxResults;
 
-    if (maxResults == null ||
-        stations.length <=
-            maxResults) {
-      return stations;
+    if (maxResults == null || groups.length <= maxResults) {
+      return groups;
     }
 
-    return stations
-        .take(maxResults)
-        .toList();
+    return groups.take(maxResults).toList();
+  }
+
+  /// La carte place un repère par point de distribution : le regroupement est
+  /// une commodité de lecture propre à la liste, pas une réalité du terrain.
+  List<GasStation> get _visibleStations => [
+    for (final group in _visibleGroups) ...group.stations,
+  ];
+
+  String get _headerTitle {
+    if (_isLoading) {
+      return 'Recherche…';
+    }
+
+    final count = _visibleGroups.length;
+
+    return '$count station${count > 1 ? 's' : ''}';
   }
 
   /// Changement du carburant.
@@ -294,47 +305,51 @@ class _GasStationListPageState
     BuildContext context,
   ) {
     return Scaffold(
-      appBar: AppBar(
-        title:
-            const Text(
-          'EcoFuel',
-        ),
-        actions: [
-          IconButton(
-            tooltip:
-                'Actualiser',
-            icon:
-                const Icon(
-              Icons.refresh,
-            ),
-            onPressed:
-                _isLoading
-                    ? null
-                    : _loadStations,
-          ),
-        ],
-        bottom:
-            GasStationFilterBar(
-          sortCriterion:
-              _sortCriterion,
-          selectedFuel:
-              _selectedFuel,
-          selectedRadius:
-              _selectedRadius,
-          onSortChanged:
-              _onSortChanged,
-          onFuelChanged:
-              _onFuelChanged,
-          onRadiusChanged:
-              _onRadiusChanged,
-        ),
+      body: SafeArea(
+        child: _errorMessage != null
+            ? _MessageState(
+                icon: Icons.error_outline,
+                iconColor: Theme.of(context).colorScheme.error,
+                message: _errorMessage!,
+                onRetry: _loadStations,
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    color: AppColors.surface,
+                    padding: _panelPadding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: _panelGap,
+                      children: [
+                        GasStationListHeader(
+                          title: _headerTitle,
+                          selectedRadius: _selectedRadius,
+                          onRadiusChanged: _onRadiusChanged,
+                          trailing: _DisplayModeButton(
+                            mode: _displayMode,
+                            onChanged: (mode) =>
+                                setState(() => _displayMode = mode),
+                          ),
+                        ),
+                        GasStationFilterBar(
+                          sortCriterion: _sortCriterion,
+                          selectedFuel: _selectedFuel,
+                          onSortChanged: _onSortChanged,
+                          onFuelChanged: _onFuelChanged,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(child: _buildList()),
+                ],
+              ),
       ),
-      body:
-          _buildBody(),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildList() {
     if (_isLoading) {
       return const Center(
         child:
@@ -342,73 +357,96 @@ class _GasStationListPageState
       );
     }
 
-    if (_errorMessage != null) {
-      return _MessageState(
-        icon:
-            Icons.error_outline,
-        iconColor:
-            Theme.of(context)
-                .colorScheme
-                .error,
-        message:
-            _errorMessage!,
-        onRetry:
-            _loadStations,
-      );
+    if (_displayMode == _DisplayMode.map) {
+      return _buildMap(_visibleStations);
     }
 
-    final List<GasStation> stations =
-        _visibleStations;
+    final groups = _visibleGroups;
 
-    if (stations.isEmpty) {
-      return _MessageState(
-        icon:
-            Icons
-                .local_gas_station_outlined,
-        message:
-            'Aucune station proposant du '
-            '${_selectedFuel.label} '
-            'dans un rayon de '
-            '${_selectedRadius.label}.',
-        onRetry:
-            _loadStations,
-      );
+    // Le tiré-pour-rafraîchir remplace le bouton Actualiser de l'ancienne
+    // AppBar : il doit rester atteignable même sans station à faire défiler.
+    return RefreshIndicator(
+      onRefresh: _loadStations,
+      child: groups.isEmpty
+          ? _MessageState(
+              icon: Icons.local_gas_station_outlined,
+              message:
+                  'Aucune station proposant du ${_selectedFuel.label} '
+                  'dans un rayon de ${_selectedRadius.label}.',
+              onRetry: _loadStations,
+              isScrollable: true,
+            )
+          : _buildStationList(groups),
+    );
+  }
+
+  /// Deux sites de la même enseigne dans la même commune n'affichent aucune
+  /// différence : mêmes titre, ville et horaires, et des distances qui
+  /// s'arrondissent souvent au même dixième. La liste est seule à pouvoir le
+  /// constater, puisqu'elle voit toutes les cartes.
+  static Set<String> _collidingLabels(List<GasStationGroup> groups) {
+    final seen = <String>{};
+    final colliding = <String>{};
+
+    for (final group in groups) {
+      if (!seen.add(_labelOf(group))) {
+        colliding.add(_labelOf(group));
+      }
     }
 
-    return Column(
-      children: [
-        _TopBar(
-          stationCount:
-              stations.length,
-          fuel:
-              _selectedFuel,
-          radius:
-              _selectedRadius,
-          lastUpdatedAt:
-              _lastUpdatedAt,
-          displayMode:
-              _displayMode,
-          onDisplayModeChanged:
-              (mode) {
-            setState(() {
-              _displayMode =
-                  mode;
-            });
-          },
-        ),
+    return colliding;
+  }
 
-        Expanded(
-          child:
-              _displayMode ==
-                      _DisplayMode.list
-                  ? _buildStationList(
-                      stations,
-                    )
-                  : _buildMap(
-                      stations,
-                    ),
-        ),
-      ],
+  static String _labelOf(GasStationGroup group) =>
+      '${GasStationCard.titleFor(group.representative)}'
+      '|${group.representative.city}';
+
+  Widget _buildStationList(List<GasStationGroup> groups) {
+    final cheapestId = groups
+        .map((group) => group.representative)
+        .reduce(
+          (cheapest, station) =>
+              station.priceFor(_selectedFuel)! <
+                  cheapest.priceFor(_selectedFuel)!
+              ? station
+              : cheapest,
+        )
+        .id;
+
+    final colliding = _collidingLabels(groups);
+
+    return ListView.builder(
+      padding: _listPadding,
+      // Une entrée de plus que de cartes : les crédits ferment la liste.
+      itemCount: groups.length + 1,
+      itemBuilder: (context, index) {
+        if (index == groups.length) {
+          return _Attribution(updatedAt: _lastUpdatedAt);
+        }
+
+        final group = groups[index];
+        final station = group.representative;
+        final key = ValueKey(station.id);
+        final showAddress = colliding.contains(_labelOf(group));
+
+        if (station.id == cheapestId) {
+          return GasStationCard.highlighted(
+            station,
+            fuel: _selectedFuel,
+            key: key,
+            showAddress: showAddress,
+            pointCount: group.pointCount,
+          );
+        }
+
+        return GasStationCard.standard(
+          station,
+          fuel: _selectedFuel,
+          key: key,
+          showAddress: showAddress,
+          pointCount: group.pointCount,
+        );
+      },
     );
   }
 
@@ -439,229 +477,82 @@ class _GasStationListPageState
           _selectedRadius,
     );
   }
-
-  /// Construit la liste.
-  Widget _buildStationList(
-    List<GasStation> stations,
-  ) {
-    final String cheapestId =
-        stations
-            .reduce(
-              (
-                cheapest,
-                station,
-              ) =>
-                  station
-                              .priceFor(
-                                _selectedFuel,
-                              )! <
-                          cheapest
-                              .priceFor(
-                                _selectedFuel,
-                              )!
-                      ? station
-                      : cheapest,
-            )
-            .id;
-
-    return ListView.builder(
-      padding:
-          const EdgeInsets.all(
-        14,
-      ),
-      itemCount:
-          stations.length,
-      itemBuilder: (
-        context,
-        index,
-      ) {
-        final GasStation station =
-            stations[index];
-
-        final ValueKey<String> key =
-            ValueKey<String>(
-          station.id,
-        );
-
-        if (station.id ==
-            cheapestId) {
-          return GasStationCard
-              .highlighted(
-            station,
-            fuel:
-                _selectedFuel,
-            key:
-                key,
-          );
-        }
-
-        return GasStationCard
-            .standard(
-          station,
-          fuel:
-              _selectedFuel,
-          key:
-              key,
-        );
-      },
-    );
-  }
 }
 
-class _TopBar
-    extends StatelessWidget {
-  const _TopBar({
-    required this.stationCount,
-    required this.fuel,
-    required this.radius,
-    required this.lastUpdatedAt,
-    required this.displayMode,
-    required this.onDisplayModeChanged,
-  });
+/// Bascule liste / carte, au gabarit du bouton de rayon.
+///
+/// Solution transitoire : l'écran cible superpose la liste à la carte dans une
+/// feuille glissante, ce qui rendra ce bouton inutile.
+class _DisplayModeButton extends StatelessWidget {
+  const _DisplayModeButton({required this.mode, required this.onChanged});
 
-  final int stationCount;
-  final FuelType fuel;
-  final SearchRadius radius;
+  static const double _size = 42;
+  static const double _radius = 12;
 
-  /// Heure du dernier chargement réussi,
-  /// `null` tant qu'il n'y en a pas eu.
-  final DateTime? lastUpdatedAt;
-
-  final _DisplayMode displayMode;
-
-  final ValueChanged<_DisplayMode>
-      onDisplayModeChanged;
-
-  /// Rend visible le rafraîchissement automatique : sans cette
-  /// heure, rien ne distingue une liste fraîche d'une liste figée.
-  String get _updatedLabel {
-    final DateTime? updatedAt =
-        lastUpdatedAt;
-
-    if (updatedAt == null) {
-      return '';
-    }
-
-    final String hour = updatedAt.hour
-        .toString()
-        .padLeft(2, '0');
-
-    final String minute = updatedAt
-        .minute
-        .toString()
-        .padLeft(2, '0');
-
-    return 'Mis à jour à $hour:$minute';
-  }
+  final _DisplayMode mode;
+  final ValueChanged<_DisplayMode> onChanged;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Padding(
-      padding:
-          const EdgeInsets.fromLTRB(
-        14,
-        12,
-        14,
-        8,
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Text(
-                '$stationCount '
-                'station'
-                '${stationCount > 1 ? 's' : ''}',
-                style:
-                    const TextStyle(
-                  fontWeight:
-                      FontWeight.bold,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${fuel.label}'
-                ' • '
-                '${radius.label}',
-              ),
-            ],
-          ),
+  Widget build(BuildContext context) {
+    final showsList = mode == _DisplayMode.list;
 
-          if (_updatedLabel.isNotEmpty)
-            Align(
-              alignment:
-                  Alignment.centerRight,
-              child: Padding(
-                padding:
-                    const EdgeInsets.only(
-                  top: 2,
-                ),
-                child: Text(
-                  _updatedLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color:
-                        Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-
-          const SizedBox(
-            height: 10,
+    return Semantics(
+      button: true,
+      label: showsList ? 'Afficher la carte' : 'Afficher la liste',
+      child: Material(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(_radius),
+        child: InkWell(
+          onTap: () => onChanged(
+            showsList ? _DisplayMode.map : _DisplayMode.list,
           ),
-          SizedBox(
-            width:
-                double.infinity,
-            child:
-                SegmentedButton<
-                    _DisplayMode>(
-              segments: const [
-                ButtonSegment(
-                  value:
-                      _DisplayMode.list,
-                  icon:
-                      Icon(
-                    Icons.list,
-                  ),
-                  label:
-                      Text(
-                    'Liste',
-                  ),
-                ),
-                ButtonSegment(
-                  value:
-                      _DisplayMode.map,
-                  icon:
-                      Icon(
-                    Icons.map_outlined,
-                  ),
-                  label:
-                      Text(
-                    'Carte',
-                  ),
-                ),
-              ],
-              selected: {
-                displayMode,
-              },
-              onSelectionChanged:
-                  (selection) {
-                onDisplayModeChanged(
-                  selection.first,
-                );
-              },
+          borderRadius: BorderRadius.circular(_radius),
+          child: SizedBox(
+            width: _size,
+            height: _size,
+            child: Icon(
+              showsList ? Icons.map_outlined : Icons.list,
+              size: 18,
+              color: AppColors.onSurface,
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
+
+/// La licence ODbL d'OpenStreetMap impose de créditer les contributeurs dès
+/// lors qu'on affiche leurs données — ici les enseignes des stations. L'heure
+/// du dernier chargement les accompagne, faute de barre supérieure depuis que
+/// l'en-tête suit le design.
+class _Attribution extends StatelessWidget {
+  const _Attribution({this.updatedAt});
+
+  final DateTime? updatedAt;
+
+  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  @override
+  Widget build(BuildContext context) {
+    final time = updatedAt;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 4),
+      child: Text(
+        [
+          if (time != null)
+            'Mis à jour à ${_twoDigits(time.hour)}:${_twoDigits(time.minute)}',
+          'Prix : data.economie.gouv.fr',
+          'Enseignes : © les contributeurs OpenStreetMap',
+        ].join(' · '),
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11, color: AppColors.onSurfaceFaint),
+      ),
+    );
+  }
+}
+
 
 class _MessageState
     extends StatelessWidget {
@@ -670,6 +561,7 @@ class _MessageState
     required this.message,
     required this.onRetry,
     this.iconColor,
+    this.isScrollable = false,
   });
 
   final IconData icon;
@@ -677,54 +569,44 @@ class _MessageState
   final VoidCallback onRetry;
   final Color? iconColor;
 
+  /// Un `RefreshIndicator` n'arme son geste que sur un enfant défilable :
+  /// l'état vide doit donc défiler, même quand son contenu tient à l'écran.
+  final bool isScrollable;
+
   @override
-  Widget build(
-    BuildContext context,
-  ) {
-    return Center(
-      child: Padding(
-        padding:
-            const EdgeInsets.all(
-          24,
-        ),
-        child: Column(
-          mainAxisAlignment:
-              MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 55,
-              color:
-                  iconColor,
-            ),
-            const SizedBox(
-              height: 15,
-            ),
-            Text(
-              message,
-              textAlign:
-                  TextAlign.center,
-              style:
-                  const TextStyle(
-                fontSize: 16,
-              ),
-            ),
-            const SizedBox(
-              height: 20,
-            ),
-            ElevatedButton.icon(
-              onPressed:
-                  onRetry,
-              icon:
-                  const Icon(
-                Icons.refresh,
-              ),
-              label:
-                  const Text(
-                'Réessayer',
-              ),
-            ),
-          ],
+  Widget build(BuildContext context) {
+    final content = Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 55, color: iconColor ?? AppColors.onSurfaceMuted),
+          const SizedBox(height: 15),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 16),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Réessayer'),
+          ),
+        ],
+      ),
+    );
+
+    if (!isScrollable) {
+      return Center(child: content);
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: Center(child: content),
         ),
       ),
     );

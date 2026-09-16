@@ -12,127 +12,117 @@ class GasStation {
     required this.isOpen24h,
     required this.closingTime,
     required this.isClosed,
+    this.brand,
   });
 
   final String id;
   final String address;
   final String city;
-
   final Map<FuelType, double?> pricesByFuel;
-
   final double distanceInKm;
 
+  /// Position de la station. Requise : la carte, le calcul d'itinéraire et le
+  /// regroupement des points de distribution en dépendent tous.
   final double latitude;
   final double longitude;
 
+  /// Automate accessible 24h/24 : la station n'a alors pas d'horaire de fermeture.
   final bool isOpen24h;
+
+  /// Heure de fermeture du jour, formatée pour l'affichage (ex. `20h30`).
+  /// `null` si l'horaire est inconnu ou si la station est déjà fermée.
   final String? closingTime;
+
   final bool isClosed;
 
-  double? priceFor(FuelType fuel) {
-    return pricesByFuel[fuel];
-  }
+  /// Enseigne (Total, Intermarché…), absente du fichier de l'État : elle vient
+  /// d'une source tierce et peut ne pas être connue.
+  final String? brand;
 
-  factory GasStation.fromJson(
-    Map<String, dynamic> json, {
-    DateTime? now,
-  }) {
-    final address =
-        json['adresse']?.toString() ??
-        'Adresse inconnue';
+  double? priceFor(FuelType fuel) => pricesByFuel[fuel];
 
-    final city =
-        json['ville']?.toString() ??
-        'Ville inconnue';
+  /// L'enseigne ne peut être résolue qu'une fois la position connue, donc
+  /// après la construction : ce copieur évite de relire le JSON.
+  GasStation withBrand(String? brand) => GasStation(
+    id: id,
+    address: address,
+    city: city,
+    pricesByFuel: pricesByFuel,
+    distanceInKm: distanceInKm,
+    latitude: latitude,
+    longitude: longitude,
+    isOpen24h: isOpen24h,
+    closingTime: closingTime,
+    isClosed: isClosed,
+    brand: brand,
+  );
 
-    final openingHours =
-        _OpeningHours.fromJson(
-      json,
-      now ?? DateTime.now(),
-    );
+  /// `null` quand la géométrie manque : mieux vaut écarter la station que lui
+  /// inventer une position, qui la placerait au large du golfe de Guinée.
+  ///
+  /// [now] n'existe que pour rendre l'interprétation des horaires testable ;
+  /// en production l'heure courante suffit.
+  static GasStation? fromJson(Map<String, dynamic> json, {DateTime? now}) {
+    final coordinates = _coordinatesOf(json);
 
-    final coordinates =
-        _extractCoordinates(json);
+    if (coordinates == null) {
+      return null;
+    }
+
+    final address = json['adresse']?.toString() ?? 'Adresse inconnue';
+    final city = json['ville']?.toString() ?? 'Ville inconnue';
+    final openingHours = _OpeningHours.fromJson(json, now ?? DateTime.now());
 
     return GasStation(
-      id:
-          json['id']?.toString() ??
-          '$address-$city',
+      id: json['id']?.toString() ?? '$address-$city',
       address: address,
       city: city,
-      distanceInKm:
-          (_toDouble(json['distance_m']) ?? 0) /
-          1000,
+      distanceInKm: (_toDouble(json['distance_m']) ?? 0) / 1000,
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
-      isOpen24h:
-          openingHours.isOpen24h,
-      closingTime:
-          openingHours.closingTime,
-      isClosed:
-          openingHours.isClosed,
+      isOpen24h: openingHours.isOpen24h,
+      closingTime: openingHours.closingTime,
+      isClosed: openingHours.isClosed,
       pricesByFuel: {
         for (final fuel in FuelType.values)
-          fuel: _toDouble(
-            json[fuel.priceJsonKey],
-          ),
+          fuel: _toDouble(json[fuel.priceJsonKey]),
       },
     );
   }
 
-  static ({
-    double latitude,
-    double longitude,
-  }) _extractCoordinates(
+  /// L'API expose `geom` sous forme d'objet `{lat, lon}` ; la forme GeoJSON
+  /// `{coordinates: [lon, lat]}` est acceptée au cas où elle réapparaîtrait.
+  static ({double latitude, double longitude})? _coordinatesOf(
     Map<String, dynamic> json,
   ) {
-    final dynamic geom = json['geom'];
+    final geom = json['geom'];
 
-    if (geom is Map) {
-      final latitude =
-          _toDouble(geom['lat']);
+    if (geom is! Map) {
+      return null;
+    }
 
-      final longitude =
-          _toDouble(geom['lon']);
+    final latitude = _toDouble(geom['lat']);
+    final longitude = _toDouble(geom['lon']);
 
-      if (latitude != null &&
-          longitude != null) {
-        return (
-          latitude: latitude,
-          longitude: longitude,
-        );
-      }
+    if (latitude != null && longitude != null) {
+      return (latitude: latitude, longitude: longitude);
+    }
 
-      final dynamic coordinates =
-          geom['coordinates'];
+    final coordinates = geom['coordinates'];
 
-      if (coordinates is List &&
-          coordinates.length >= 2) {
-        final longitude =
-            _toDouble(coordinates[0]);
+    if (coordinates is List && coordinates.length >= 2) {
+      final geoJsonLongitude = _toDouble(coordinates[0]);
+      final geoJsonLatitude = _toDouble(coordinates[1]);
 
-        final latitude =
-            _toDouble(coordinates[1]);
-
-        if (latitude != null &&
-            longitude != null) {
-          return (
-            latitude: latitude,
-            longitude: longitude,
-          );
-        }
+      if (geoJsonLatitude != null && geoJsonLongitude != null) {
+        return (latitude: geoJsonLatitude, longitude: geoJsonLongitude);
       }
     }
 
-    return (
-      latitude: 0,
-      longitude: 0,
-    );
+    return null;
   }
 
-  static double? _toDouble(
-    dynamic value,
-  ) {
+  static double? _toDouble(dynamic value) {
     if (value == null) {
       return null;
     }
@@ -141,13 +131,10 @@ class GasStation {
       return value.toDouble();
     }
 
-    return double.tryParse(
-      value
-          .toString()
-          .replaceAll(',', '.'),
-    );
+    return double.tryParse(value.toString().replaceAll(',', '.'));
   }
 }
+
 
 class _OpeningHours {
   const _OpeningHours({

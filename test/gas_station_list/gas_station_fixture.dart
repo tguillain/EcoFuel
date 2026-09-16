@@ -15,8 +15,9 @@ GasStation buildGasStation({
   bool isOpen24h = false,
   String? closingTime,
   bool isClosed = false,
+  String? brand,
 
-  // Coordonnées GPS utilisées uniquement pour les tests.
+  // Coordonnées par défaut : centre de Nantes, comme en développement.
   double latitude = 47.2184,
   double longitude = -1.5536,
 }) {
@@ -45,5 +46,6 @@ GasStation buildGasStation({
     isOpen24h: isOpen24h,
     closingTime: closingTime,
     isClosed: isClosed,
+    brand: brand,
   );
 }

@@ -11,334 +11,211 @@ import 'package:flutter_test/flutter_test.dart';
 import 'gas_station_fixture.dart';
 
 void main() {
-  /// Lance la page EcoFuel avec un faux service.
-  Future<void> pumpPage(
-    WidgetTester tester,
-    GasStationService service,
-  ) async {
+  Future<void> pumpPage(WidgetTester tester, GasStationService service) async {
     await tester.pumpWidget(
-      MaterialApp(
-        home: GasStationListPage(
-          service: service,
-        ),
-      ),
+      MaterialApp(home: GasStationListPage(service: service)),
     );
   }
 
-  group(
-    'GasStationListPage',
-    () {
-      testWidgets(
-        'affiche un indicateur puis la liste',
-        (tester) async {
-          await pumpPage(
-            tester,
-            _FakeGasStationService(
-              stations: [
-                buildGasStation(
-                  id: 'a',
-                  price: 1.70,
-                  distanceInKm: 1,
-                ),
-                buildGasStation(
-                  id: 'b',
-                  price: 1.65,
-                  distanceInKm: 4,
-                ),
-              ],
-            ),
-          );
-
-          // Le chargement doit apparaître au départ.
-          expect(
-            find.byType(
-              CircularProgressIndicator,
-            ),
-            findsOneWidget,
-          );
-
-          await tester.pumpAndSettle();
-
-          // Puis deux stations sont affichées.
-          expect(
-            find.byType(
-              GasStationCard,
-            ),
-            findsNWidgets(2),
-          );
-
-          expect(
-            find.text(
-              '2 stations',
-            ),
-            findsOneWidget,
-          );
-        },
+  group('GasStationListPage', () {
+    testWidgets('affiche un indicateur puis la liste', (tester) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            buildGasStation(id: 'a', price: 1.70, distanceInKm: 1),
+            buildGasStation(id: 'b', price: 1.65, distanceInKm: 4),
+          ],
+        ),
       );
 
-      testWidgets(
-        'met en avant la station la moins chère',
-        (tester) async {
-          await pumpPage(
-            tester,
-            _FakeGasStationService(
-              stations: [
-                buildGasStation(
-                  id: 'chere',
-                  price: 1.90,
-                  distanceInKm: 1,
-                ),
-                buildGasStation(
-                  id: 'moinsChere',
-                  price: 1.65,
-                  distanceInKm: 4,
-                ),
-              ],
-            ),
-          );
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
 
-          await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
 
-          final List<GasStationCard> cards =
-              tester
-                  .widgetList<GasStationCard>(
-                    find.byType(
-                      GasStationCard,
-                    ),
-                  )
-                  .toList();
+      expect(find.byType(GasStationCard), findsNWidgets(2));
+      expect(find.text('2 stations'), findsOneWidget);
+    });
 
-          // Une seule carte doit être mise en avant.
-          expect(
-            cards
-                .where(
-                  (card) =>
-                      card.isHighlighted,
-                )
-                .length,
-            1,
-          );
-
-          // Elle doit être celle à 1.65 €.
-          expect(
-            cards
-                .firstWhere(
-                  (card) =>
-                      card.isHighlighted,
-                )
-                .station
-                .id,
-            'moinsChere',
-          );
-        },
-      );
-
-      testWidgets(
-        'affiche le message d\'erreur et permet de réessayer',
-        (tester) async {
-          final _FakeGasStationService service =
-              _FakeGasStationService(
-            error: Exception(
-              'La localisation est désactivée.',
-            ),
-          );
-
-          await pumpPage(
-            tester,
-            service,
-          );
-
-          await tester.pumpAndSettle();
-
-          expect(
-            find.text(
-              'La localisation est désactivée.',
-            ),
-            findsOneWidget,
-          );
-
-          // On simule ensuite un service fonctionnel.
-          service.stations = [
+    // Deux E.Leclerc dans la même commune n'ont aucun champ qui les
+    // distingue : l'adresse revient sur ces cartes-là, et sur elles seules.
+    testWidgets('désambiguïse deux stations de même enseigne et commune', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            // Deux kilomètres les séparent : trop loin pour être regroupées,
+            // assez semblables pour être indiscernables sans leur adresse.
             buildGasStation(
-              id: 'a',
-              price: 1.70,
-              distanceInKm: 1,
+              id: 'paris',
+              price: 2.169,
+              distanceInKm: 4.5,
+              brand: 'E.Leclerc',
+              city: 'Nantes',
+              address: '14 ROUTE DE PARIS',
+              latitude: 47.251,
+              longitude: -1.518,
             ),
-          ];
-
-          service.error = null;
-
-          // Clic sur Réessayer.
-          await tester.tap(
-            find.widgetWithText(
-              ElevatedButton,
-              'Réessayer',
+            buildGasStation(
+              id: 'perray',
+              price: 2.169,
+              distanceInKm: 4.5,
+              brand: 'E.Leclerc',
+              city: 'Nantes',
+              address: '95 RUE DU PERRAY',
+              latitude: 47.269,
+              longitude: -1.518,
             ),
-          );
-
-          await tester.pumpAndSettle();
-
-          expect(
-            find.byType(
-              GasStationCard,
+            buildGasStation(
+              id: 'seule',
+              price: 2.20,
+              distanceInKm: 3,
+              brand: 'Avia',
+              city: 'Nantes',
+              address: '1 RUE DU CROISSANT',
             ),
-            findsOneWidget,
-          );
-        },
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('14 route de Paris'), findsOneWidget);
+      expect(find.textContaining('95 rue du Perray'), findsOneWidget);
+
+      // La station sans homonyme garde une ligne secondaire épurée.
+      expect(find.textContaining('1 rue du Croissant'), findsNothing);
+    });
+
+    // La licence ODbL impose de créditer OpenStreetMap dès qu'on affiche les
+    // enseignes : les crédits ferment la liste.
+    testWidgets('crédite les sources en fin de liste', (tester) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('OpenStreetMap'), findsOneWidget);
+      expect(find.textContaining('data.economie.gouv.fr'), findsOneWidget);
+    });
+
+    testWidgets('met en avant la station la moins chère', (tester) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            buildGasStation(id: 'chere', price: 1.90, distanceInKm: 1),
+            buildGasStation(id: 'moinsChere', price: 1.65, distanceInKm: 4),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final cards = tester
+          .widgetList<GasStationCard>(find.byType(GasStationCard))
+          .toList();
+
+      expect(cards.where((card) => card.isHighlighted).length, 1);
+      expect(
+        cards.firstWhere((card) => card.isHighlighted).station.id,
+        'moinsChere',
+      );
+    });
+
+    testWidgets('affiche le message d\'erreur et permet de réessayer', (
+      tester,
+    ) async {
+      final service = _FakeGasStationService(
+        error: Exception('La localisation est désactivée.'),
       );
 
-      testWidgets(
-        'change de carburant sans rappeler le service',
-        (tester) async {
-          final _FakeGasStationService service =
-              _FakeGasStationService(
-            stations: [
-              buildGasStation(
-                id: 'e10',
-                price: 1.70,
-                distanceInKm: 1,
-              ),
-              buildGasStation(
-                id: 'sp98',
-                price: 1.90,
-                distanceInKm: 2,
-                fuel: FuelType.sp98,
-              ),
-            ],
-          );
+      await pumpPage(tester, service);
+      await tester.pumpAndSettle();
 
-          await pumpPage(
-            tester,
-            service,
-          );
+      expect(find.text('La localisation est désactivée.'), findsOneWidget);
 
-          await tester.pumpAndSettle();
+      service.stations = [
+        buildGasStation(id: 'a', price: 1.70, distanceInKm: 1),
+      ];
+      service.error = null;
 
-          // E10 est sélectionné au départ.
-          expect(
-            find.byType(
-              GasStationCard,
-            ),
-            findsOneWidget,
-          );
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Réessayer'));
+      await tester.pumpAndSettle();
 
-          expect(
-            service.callCount,
-            1,
-          );
+      expect(find.byType(GasStationCard), findsOneWidget);
+    });
 
-          // Sélection du SP98.
-          await tester.tap(
-            find.widgetWithText(
-              ChoiceChip,
-              'SP98',
-            ),
-          );
-
-          await tester.pumpAndSettle();
-
-          // Changer le carburant ne doit
-          // pas refaire un appel API.
-          expect(
-            service.callCount,
-            1,
-          );
-
-          expect(
-            tester
-                .widget<GasStationCard>(
-                  find.byType(
-                    GasStationCard,
-                  ),
-                )
-                .station
-                .id,
-            'sp98',
-          );
-        },
+    testWidgets('change de carburant sans rappeler le service', (tester) async {
+      final service = _FakeGasStationService(
+        stations: [
+          buildGasStation(id: 'e10', price: 1.70, distanceInKm: 1),
+          buildGasStation(
+            id: 'sp98',
+            price: 1.90,
+            distanceInKm: 2,
+            fuel: FuelType.sp98,
+          ),
+        ],
       );
 
-      testWidgets(
-        'recharge les stations quand le rayon change',
-        (tester) async {
-          final _FakeGasStationService service =
-              _FakeGasStationService(
-            stations: [
-              buildGasStation(
-                id: 'a',
-                price: 1.70,
-                distanceInKm: 1,
-              ),
-            ],
-          );
+      await pumpPage(tester, service);
+      await tester.pumpAndSettle();
 
-          await pumpPage(
-            tester,
-            service,
-          );
+      expect(find.byType(GasStationCard), findsOneWidget);
+      expect(service.callCount, 1);
 
-          await tester.pumpAndSettle();
+      await tester.tap(find.text('SP98'));
+      await tester.pumpAndSettle();
 
-          // Sélection d'un rayon de 25 km.
-          await tester.tap(
-            find.widgetWithText(
-              ChoiceChip,
-              '25 km',
-            ),
-          );
+      expect(service.callCount, 1);
+      expect(
+        tester.widget<GasStationCard>(find.byType(GasStationCard)).station.id,
+        'sp98',
+      );
+    });
 
-          await tester.pumpAndSettle();
-
-          // Premier appel au lancement
-          // + deuxième appel au changement de rayon.
-          expect(
-            service.callCount,
-            2,
-          );
-
-          expect(
-            service.lastRadius,
-            SearchRadius.twentyFiveKm,
-          );
-        },
+    testWidgets('recharge les stations quand le rayon change', (tester) async {
+      final service = _FakeGasStationService(
+        stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
       );
 
-      testWidgets(
-        'affiche un état vide sans station pour le carburant',
-        (tester) async {
-          await pumpPage(
-            tester,
-            _FakeGasStationService(
-              stations: [
-                buildGasStation(
-                  id: 'sp98',
-                  price: 1.90,
-                  distanceInKm: 2,
-                  fuel: FuelType.sp98,
-                ),
-              ],
-            ),
-          );
+      await pumpPage(tester, service);
+      await tester.pumpAndSettle();
 
-          await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.my_location_rounded));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('25 km'));
+      await tester.pumpAndSettle();
 
-          // E10 est sélectionné par défaut,
-          // mais notre station ne possède que du SP98.
-          expect(
-            find.byType(
-              GasStationCard,
-            ),
-            findsNothing,
-          );
+      expect(service.callCount, 2);
+      expect(service.lastRadius, SearchRadius.twentyFiveKm);
+    });
 
-          expect(
-            find.textContaining(
-              'Aucune station',
+    testWidgets('affiche un état vide sans station pour le carburant', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            buildGasStation(
+              id: 'sp98',
+              price: 1.90,
+              distanceInKm: 2,
+              fuel: FuelType.sp98,
             ),
-            findsOneWidget,
-          );
-        },
+          ],
+        ),
       );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GasStationCard), findsNothing);
+      expect(find.textContaining('Aucune station'), findsOneWidget);
+    });
 
       testWidgets(
         'recharge les stations chaque minute sans indicateur',
@@ -466,8 +343,7 @@ void main() {
           );
         },
       );
-    },
-  );
+  });
 }
 
 /// Faux GasStationService utilisé uniquement pendant les tests.

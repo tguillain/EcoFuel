@@ -3,7 +3,7 @@ import 'package:ecofuel/gas_station_list/model/effective_price.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 
 enum GasStationSortCriterion {
-  price('Prix'),
+  price('Prix croissant'),
   distance('Distance'),
 
   /// Meilleur compromis entre prix et détour, limité aux dix premières.
