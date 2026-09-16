@@ -1,23 +1,26 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:ecofuel/gas_station_list/widget/map/gas_station_details_sheet.dart';
+import 'package:ecofuel/gas_station_list/widget/map/station_marker_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 /// Construit le marqueur d'une station sur la carte.
 ///
-/// La couleur est calculée dans GasStationMap
-/// en fonction du critère Prix / Distance.
+/// Les stations au meilleur prix sont dessinées en plus gros et en couleur,
+/// les autres en gris et en retrait : sur une carte dense, c'est le contraste
+/// qui fait ressortir les bonnes affaires, pas la couleur seule.
 Marker buildGasStationMarker({
   required BuildContext context,
   required GasStation station,
   required FuelType fuel,
-  required Color markerColor,
+  required StationMarkerColor markerColor,
   required VoidCallback onShowRoute,
 }) {
-  final double? price =
-      station.priceFor(fuel);
+  final double? price = station.priceFor(fuel);
+
+  final bool isHighlighted = markerColor.isHighlighted;
 
   return Marker(
     point: LatLng(
@@ -34,45 +37,33 @@ Marker buildGasStationMarker({
           context: context,
           station: station,
           fuel: fuel,
-          onShowRoute:
-              onShowRoute,
+          onShowRoute: onShowRoute,
         );
       },
       child: Column(
-        mainAxisSize:
-            MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         children: [
           // =============================
           // PRIX
           // =============================
           Container(
-            padding:
-                const EdgeInsets.symmetric(
+            padding: const EdgeInsets.symmetric(
               horizontal: 8,
               vertical: 4,
             ),
-            decoration:
-                BoxDecoration(
-              color:
-                  Theme.of(context)
-                      .colorScheme
-                      .surface,
-              borderRadius:
-                  BorderRadius.circular(
-                8,
-              ),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
 
-              // La bordure indique le niveau
-              // d'intérêt de la station.
+              // La bordure signale les stations à retenir.
               border: Border.all(
-                color: markerColor,
-                width: 2,
+                color: markerColor.color,
+                width: isHighlighted ? 2 : 1,
               ),
-              boxShadow: const [
+              boxShadow: [
                 BoxShadow(
-                  blurRadius: 4,
-                  color:
-                      Colors.black26,
+                  blurRadius: isHighlighted ? 4 : 2,
+                  color: Colors.black26,
                 ),
               ],
             ),
@@ -81,11 +72,11 @@ Marker buildGasStationMarker({
                   ? '--'
                   : '${price.toStringAsFixed(3)} €',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight:
-                    FontWeight.bold,
-                color:
-                    markerColor,
+                fontSize: isHighlighted ? 13 : 12,
+                fontWeight: isHighlighted
+                    ? FontWeight.bold
+                    : FontWeight.w500,
+                color: markerColor.color,
               ),
             ),
           ),
@@ -95,8 +86,8 @@ Marker buildGasStationMarker({
           // =============================
           Icon(
             Icons.location_on,
-            size: 39,
-            color: markerColor,
+            size: isHighlighted ? 39 : 30,
+            color: markerColor.color,
           ),
         ],
       ),

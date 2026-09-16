@@ -1,142 +1,80 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
-import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:flutter/material.dart';
 
-/// Gère la couleur des marqueurs selon le critère choisi.
+/// Couleur du marqueur d'une station sur la carte.
 ///
-/// Si le tri est sur PRIX :
-/// - vert = station la moins chère
-/// - orange = prix intermédiaire
-/// - rouge = station plus chère
+/// Seul un prix bas est coloré : le vert signale les stations qui valent le
+/// détour, tout le reste reste gris. Colorer aussi les stations chères ferait
+/// trois familles de couleurs à comparer alors que l'utilisateur ne cherche
+/// que les moins chères.
 ///
-/// Si le tri est sur DISTANCE :
-/// - vert = station proche
-/// - orange = distance intermédiaire
-/// - rouge = station plus éloignée
-class StationMarkerColor {
-  const StationMarkerColor._();
+/// La distance n'intervient pas ici : elle est déjà lisible sur la carte par
+/// la position du marqueur, la couleur ne parle que du prix.
+enum StationMarkerColor {
+  /// Le prix le plus bas parmi les stations affichées.
+  best(Color.fromRGBO(27, 94, 32, 1)),
 
-  static Color forStation({
+  /// À quelques centimes du meilleur prix : encore intéressant.
+  cheap(Color.fromRGBO(67, 160, 71, 1)),
+
+  /// Tout le reste, y compris les stations sans prix connu.
+  regular(Color.fromRGBO(117, 124, 130, 1));
+
+  const StationMarkerColor(this.color);
+
+  final Color color;
+
+  /// Écart maximal avec le meilleur prix, en euros par litre, au-delà duquel
+  /// une station n'est plus mise en avant.
+  static const double _cheapThreshold = 0.03;
+
+  /// Tolérance d'égalité : deux stations au même prix affiché doivent être
+  /// vertes toutes les deux, malgré les arrondis en virgule flottante.
+  static const double _tiePrecision = 0.001;
+
+  bool get isHighlighted => this != StationMarkerColor.regular;
+
+  static StationMarkerColor forStation({
     required GasStation station,
     required List<GasStation> stations,
     required FuelType fuel,
-    required GasStationSortCriterion sortCriterion,
   }) {
-    if (sortCriterion == GasStationSortCriterion.distance) {
-      return _forDistance(
-        station: station,
-        stations: stations,
-      );
+    final double? price = station.priceFor(fuel);
+
+    if (price == null) {
+      return StationMarkerColor.regular;
     }
 
-    return _forPrice(
-      station: station,
-      stations: stations,
-      fuel: fuel,
-    );
+    final double? cheapestPrice = _cheapestPrice(stations, fuel);
+
+    if (cheapestPrice == null) {
+      return StationMarkerColor.regular;
+    }
+
+    final double difference = price - cheapestPrice;
+
+    if (difference <= _tiePrecision) {
+      return StationMarkerColor.best;
+    }
+
+    if (difference <= _cheapThreshold) {
+      return StationMarkerColor.cheap;
+    }
+
+    return StationMarkerColor.regular;
   }
 
-  /// Couleur basée sur le prix.
-  static Color _forPrice({
-    required GasStation station,
-    required List<GasStation> stations,
-    required FuelType fuel,
-  }) {
-    final double? stationPrice =
-        station.priceFor(fuel);
-
-    if (stationPrice == null) {
-      return Colors.grey;
-    }
-
+  static double? _cheapestPrice(List<GasStation> stations, FuelType fuel) {
     final List<double> prices = stations
-        .map(
-          (station) => station.priceFor(fuel),
-        )
+        .map((station) => station.priceFor(fuel))
         .whereType<double>()
         .toList();
 
     if (prices.isEmpty) {
-      return Colors.grey;
+      return null;
     }
 
-    final double cheapestPrice =
-        prices.reduce(
-      (a, b) => a < b ? a : b,
-    );
-
-    final double difference =
-        stationPrice - cheapestPrice;
-
-    // Meilleur prix.
-    if (difference <= 0.001) {
-      return Colors.green.shade800;
-    }
-
-    // Jusqu'à 3 centimes de plus.
-    if (difference <= 0.03) {
-      return Colors.green.shade500;
-    }
-
-    // Jusqu'à 8 centimes de plus.
-    if (difference <= 0.08) {
-      return Colors.orange.shade700;
-    }
-
-    // Plus cher.
-    return Colors.red.shade700;
-  }
-
-  /// Couleur basée sur la distance.
-  static Color _forDistance({
-    required GasStation station,
-    required List<GasStation> stations,
-  }) {
-    if (stations.isEmpty) {
-      return Colors.grey;
-    }
-
-    final List<GasStation> sortedStations =
-        List<GasStation>.from(
-      stations,
-    );
-
-    sortedStations.sort(
-      (a, b) => a.distanceInKm.compareTo(
-        b.distanceInKm,
-      ),
-    );
-
-    final int index =
-        sortedStations.indexWhere(
-      (item) => item.id == station.id,
-    );
-
-    if (index == -1) {
-      return Colors.grey;
-    }
-
-    // Station la plus proche.
-    if (index == 0) {
-      return Colors.green.shade800;
-    }
-
-    final double position =
-        (index + 1) /
-            sortedStations.length;
-
-    // Premier tiers = proche.
-    if (position <= 0.33) {
-      return Colors.green.shade500;
-    }
-
-    // Deuxième tiers.
-    if (position <= 0.66) {
-      return Colors.orange.shade700;
-    }
-
-    // Dernier tiers = loin.
-    return Colors.red.shade700;
+    return prices.reduce((a, b) => a < b ? a : b);
   }
 }

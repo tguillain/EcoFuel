@@ -1,5 +1,4 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
-import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:ecofuel/gas_station_list/model/route_result.dart';
@@ -21,7 +20,6 @@ class GasStationMap
     required this.fuel,
     required this.userCoordinates,
     required this.radius,
-    required this.sortCriterion,
     this.routeService =
         const RouteService(),
   });
@@ -30,11 +28,6 @@ class GasStationMap
   final FuelType fuel;
   final UserCoordinates userCoordinates;
   final SearchRadius radius;
-
-  /// Critère sélectionné dans la barre :
-  /// Prix ou Distance.
-  final GasStationSortCriterion
-      sortCriterion;
 
   final RouteService routeService;
 
@@ -65,11 +58,93 @@ class _GasStationMapState
     );
   }
 
-  /// Zoom adapté au rayon.
+  /// Zoom de repli, utilisé tant qu'aucune
+  /// station n'est affichée.
   double get _zoom {
     return MapZoom.forRadius(
       widget.radius,
     );
+  }
+
+  /// Stations affichables : celles qui ont des
+  /// coordonnées et un prix pour le carburant choisi.
+  List<GasStation> get _visibleStations {
+    return widget.stations
+        .where(
+          (station) =>
+              station.latitude != 0 &&
+              station.longitude != 0 &&
+              station.priceFor(
+                    widget.fuel,
+                  ) !=
+                  null,
+        )
+        .toList();
+  }
+
+  /// Cadrage englobant l'utilisateur et ses stations.
+  ///
+  /// Remplace le cercle de rayon : la zone couverte se lit
+  /// dans ce que la carte montre, sans poser un disque
+  /// bleu par-dessus les rues.
+  CameraFit? get _stationsFit {
+    final List<GasStation> stations =
+        _visibleStations;
+
+    if (stations.isEmpty) {
+      return null;
+    }
+
+    return CameraFit.bounds(
+      bounds:
+          LatLngBounds.fromPoints([
+        _userPosition,
+        ...stations.map(
+          (station) => LatLng(
+            station.latitude,
+            station.longitude,
+          ),
+        ),
+      ]),
+      padding:
+          const EdgeInsets.all(
+        55,
+      ),
+      maxZoom: 15,
+    );
+  }
+
+  /// Stations et leur couleur, triées du gris vers le vert.
+  ///
+  /// L'ordre de la liste est l'ordre de dessin : les
+  /// meilleurs prix passent ainsi au-dessus des autres.
+  List<({GasStation station, StationMarkerColor color})>
+      _markerEntries() {
+    final List<GasStation> stations =
+        _visibleStations;
+
+    final List<({GasStation station, StationMarkerColor color})>
+        entries = stations
+            .map(
+              (station) => (
+                station: station,
+                color:
+                    StationMarkerColor.forStation(
+                  station: station,
+                  stations: stations,
+                  fuel: widget.fuel,
+                ),
+              ),
+            )
+            .toList();
+
+    entries.sort(
+      (a, b) => b.color.index.compareTo(
+        a.color.index,
+      ),
+    );
+
+    return entries;
   }
 
   @override
@@ -96,13 +171,24 @@ class _GasStationMapState
                     .userCoordinates
                     .longitude;
 
+    final bool fuelChanged =
+        oldWidget.fuel != widget.fuel;
+
     // Lors d'un changement de rayon ou de position,
     // on supprime l'itinéraire précédent.
     if (radiusChanged ||
         positionChanged) {
       _route = null;
       _routeDestination = null;
+    }
 
+    // Le cadrage suit les stations affichées : changer
+    // de carburant change la liste, donc l'étendue à
+    // montrer. Un itinéraire en cours garde sa vue.
+    if ((radiusChanged ||
+            positionChanged ||
+            fuelChanged) &&
+        _route == null) {
       WidgetsBinding.instance
           .addPostFrameCallback(
         (_) {
@@ -112,11 +198,22 @@ class _GasStationMapState
     }
   }
 
-  /// Recentre la carte.
+  /// Recadre la carte sur l'utilisateur et ses stations.
   void _centerMap() {
-    _mapController.move(
-      _userPosition,
-      _zoom,
+    final CameraFit? fit =
+        _stationsFit;
+
+    if (fit == null) {
+      _mapController.move(
+        _userPosition,
+        _zoom,
+      );
+
+      return;
+    }
+
+    _mapController.fitCamera(
+      fit,
     );
   }
 
@@ -213,22 +310,9 @@ class _GasStationMapState
   Widget build(
     BuildContext context,
   ) {
-    // Seulement les stations :
-    // - possédant des coordonnées ;
-    // - proposant le carburant sélectionné.
-    final List<GasStation>
-        visibleStations =
-        widget.stations
-            .where(
-              (station) =>
-                  station.latitude != 0 &&
-                  station.longitude != 0 &&
-                  station.priceFor(
-                        widget.fuel,
-                      ) !=
-                      null,
-            )
-            .toList();
+    final List<({GasStation station, StationMarkerColor color})>
+        markerEntries =
+        _markerEntries();
 
     return Stack(
       children: [
@@ -240,6 +324,8 @@ class _GasStationMapState
                 _userPosition,
             initialZoom:
                 _zoom,
+            initialCameraFit:
+                _stationsFit,
           ),
           children: [
             // =============================
@@ -252,36 +338,6 @@ class _GasStationMapState
               userAgentPackageName:
                   'com.example.ecofuel',
             ),
-
-            // =============================
-            // RAYON DE RECHERCHE
-            // =============================
-            if (_route == null)
-              CircleLayer(
-                circles: [
-                  CircleMarker(
-                    point:
-                        _userPosition,
-                    radius:
-                        widget.radius.inKm *
-                            1000,
-                    useRadiusInMeter:
-                        true,
-                    color:
-                        Colors.blue
-                            .withValues(
-                      alpha: 0.06,
-                    ),
-                    borderColor:
-                        Colors.blue
-                            .withValues(
-                      alpha: 0.55,
-                    ),
-                    borderStrokeWidth:
-                        2,
-                  ),
-                ],
-              ),
 
             // =============================
             // ROUTE
@@ -308,36 +364,19 @@ class _GasStationMapState
               markers: [
                 _buildUserMarker(),
 
-                ...visibleStations.map(
-                  (station) {
-                    // La couleur est calculée
-                    // en fonction du bouton
-                    // Prix ou Distance.
-                    final Color color =
-                        StationMarkerColor
-                            .forStation(
-                      station:
-                          station,
-                      stations:
-                          visibleStations,
-                      fuel:
-                          widget.fuel,
-                      sortCriterion:
-                          widget
-                              .sortCriterion,
-                    );
-
+                ...markerEntries.map(
+                  (entry) {
                     return buildGasStationMarker(
                       context: context,
                       station:
-                          station,
+                          entry.station,
                       fuel:
                           widget.fuel,
                       markerColor:
-                          color,
+                          entry.color,
                       onShowRoute: () {
                         _showRoute(
-                          station,
+                          entry.station,
                         );
                       },
                     );
@@ -357,16 +396,15 @@ class _GasStationMapState
         ),
 
         // =============================
-        // INDICATION DU CRITÈRE
+        // LÉGENDE DES COULEURS
         // =============================
         if (_route == null)
           Positioned(
             left: 12,
             top: 12,
             child:
-                _CriterionLegend(
-              criterion:
-                  widget.sortCriterion,
+                _PriceLegend(
+              fuel: widget.fuel,
             ),
           ),
 
@@ -542,27 +580,22 @@ class _GasStationMapState
   }
 }
 
-/// Indique à quoi correspondent les couleurs.
+/// Rappelle ce que signale la couleur d'un marqueur.
 ///
-/// Le texte change automatiquement selon
-/// Prix ou Distance.
-class _CriterionLegend
+/// Seules les stations au bon prix sont colorées, la
+/// légende n'a donc que deux niveaux à expliquer.
+class _PriceLegend
     extends StatelessWidget {
-  const _CriterionLegend({
-    required this.criterion,
+  const _PriceLegend({
+    required this.fuel,
   });
 
-  final GasStationSortCriterion
-      criterion;
+  final FuelType fuel;
 
   @override
   Widget build(
     BuildContext context,
   ) {
-    final bool isPrice =
-        criterion ==
-            GasStationSortCriterion.price;
-
     return Container(
       padding:
           const EdgeInsets.all(
@@ -591,9 +624,7 @@ class _CriterionLegend
             CrossAxisAlignment.start,
         children: [
           Text(
-            isPrice
-                ? 'Prix'
-                : 'Distance',
+            'Prix ${fuel.label}',
             style:
                 const TextStyle(
               fontWeight:
@@ -603,25 +634,23 @@ class _CriterionLegend
           const SizedBox(
             height: 4,
           ),
-          _LegendLine(
+          const _LegendLine(
             color:
-                Colors.green,
-            text: isPrice
-                ? 'Moins cher'
-                : 'Plus proche',
+                StationMarkerColor.best,
+            text:
+                'Meilleur prix',
           ),
           const _LegendLine(
             color:
-                Colors.orange,
+                StationMarkerColor.cheap,
             text:
-                'Intermédiaire',
+                'À 3 centimes près',
           ),
-          _LegendLine(
+          const _LegendLine(
             color:
-                Colors.red,
-            text: isPrice
-                ? 'Plus cher'
-                : 'Plus éloigné',
+                StationMarkerColor.regular,
+            text:
+                'Au-dessus',
           ),
         ],
       ),
@@ -636,7 +665,7 @@ class _LegendLine
     required this.text,
   });
 
-  final Color color;
+  final StationMarkerColor color;
   final String text;
 
   @override
@@ -657,7 +686,7 @@ class _LegendLine
             height: 9,
             decoration:
                 BoxDecoration(
-              color: color,
+              color: color.color,
               shape:
                   BoxShape.circle,
             ),

@@ -333,12 +333,6 @@ class _GasStationListPageState
           coordinates,
       radius:
           _selectedRadius,
-
-      // IMPORTANT :
-      // la carte sait maintenant si
-      // Prix ou Distance est sélectionné.
-      sortCriterion:
-          _sortCriterion,
     );
   }
 
