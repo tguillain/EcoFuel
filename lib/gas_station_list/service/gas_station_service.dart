@@ -7,9 +7,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class GasStationService {
-  /// Le locator n'existe que pour rendre la position injectable : en production
-  /// le GPS suffit, un [FixedUserLocator] permet de s'en passer ailleurs.
-  const GasStationService([this._locator = const GeolocatorUserLocator()]);
+  const GasStationService([
+    this._locator =
+        const GeolocatorUserLocator(),
+  ]);
 
   final UserLocator _locator;
 
@@ -21,27 +22,72 @@ class GasStationService {
 
   static const int _resultLimit = 100;
 
-  Future<List<GasStation>> fetchNearbyStations({
+  Future<UserCoordinates>
+      currentCoordinates() {
+    return _locator
+        .currentCoordinates();
+  }
+
+  Future<List<GasStation>>
+      fetchNearbyStations({
     required SearchRadius radius,
+    UserCoordinates? coordinates,
   }) async {
-    final coordinates = await _locator.currentCoordinates();
-    final uri = _buildUri(coordinates: coordinates, radius: radius);
+    final currentCoordinates =
+        coordinates ??
+        await _locator
+            .currentCoordinates();
 
-    debugPrint('URL : $uri');
+    final uri = _buildUri(
+      coordinates:
+          currentCoordinates,
+      radius: radius,
+    );
 
-    final response = await http.get(uri);
+    debugPrint(
+      'Position utilisateur : '
+      '${currentCoordinates.latitude} / '
+      '${currentCoordinates.longitude}',
+    );
+
+    debugPrint(
+      'Rayon : ${radius.inKm} km',
+    );
+
+    debugPrint(
+      'URL : $uri',
+    );
+
+    final response =
+        await http.get(uri);
 
     if (response.statusCode != 200) {
       debugPrint(response.body);
 
-      throw Exception('Erreur API : ${response.statusCode}');
+      throw Exception(
+        'Erreur API : '
+        '${response.statusCode}',
+      );
     }
 
-    final Map<String, dynamic> body = jsonDecode(response.body);
-    final List<dynamic> results = body['results'] ?? [];
+    final Map<String, dynamic> body =
+        jsonDecode(response.body);
+
+    final List<dynamic> results =
+        body['results'] ?? [];
+
+    debugPrint(
+      'Stations récupérées : '
+      '${results.length}',
+    );
 
     return results
-        .map((item) => GasStation.fromJson(item as Map<String, dynamic>))
+        .map(
+          (item) =>
+              GasStation.fromJson(
+            item as Map<String, dynamic>,
+          ),
+        )
         .toList();
   }
 
@@ -50,13 +96,29 @@ class GasStationService {
     required SearchRadius radius,
   }) {
     final point =
-        "geom'POINT(${coordinates.longitude} ${coordinates.latitude})'";
+        "geom'POINT("
+        "${coordinates.longitude} "
+        "${coordinates.latitude}"
+        ")'";
 
-    return Uri.parse(_baseUrl).replace(
+    return Uri.parse(
+      _baseUrl,
+    ).replace(
       queryParameters: {
-        'where': 'within_distance(geom,$point,${radius.inKm}km)',
-        'select': '*, distance(geom,$point) as distance_m',
-        'limit': '$_resultLimit',
+        'where':
+            'within_distance('
+            'geom,'
+            '$point,'
+            '${radius.inKm}km'
+            ')',
+        'select':
+            '*, '
+            'distance('
+            'geom,'
+            '$point'
+            ') as distance_m',
+        'limit':
+            '$_resultLimit',
       },
     );
   }

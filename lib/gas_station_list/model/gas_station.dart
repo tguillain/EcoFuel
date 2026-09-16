@@ -7,6 +7,8 @@ class GasStation {
     required this.city,
     required this.pricesByFuel,
     required this.distanceInKm,
+    required this.latitude,
+    required this.longitude,
     required this.isOpen24h,
     required this.closingTime,
     required this.isClosed,
@@ -15,43 +17,122 @@ class GasStation {
   final String id;
   final String address;
   final String city;
+
   final Map<FuelType, double?> pricesByFuel;
+
   final double distanceInKm;
 
-  /// Automate accessible 24h/24 : la station n'a alors pas d'horaire de fermeture.
+  final double latitude;
+  final double longitude;
+
   final bool isOpen24h;
-
-  /// Heure de fermeture du jour, formatée pour l'affichage (ex. `20h30`).
-  /// `null` si l'horaire est inconnu ou si la station est déjà fermée.
   final String? closingTime;
-
   final bool isClosed;
 
-  double? priceFor(FuelType fuel) => pricesByFuel[fuel];
+  double? priceFor(FuelType fuel) {
+    return pricesByFuel[fuel];
+  }
 
-  /// [now] n'existe que pour rendre l'interprétation des horaires testable ;
-  /// en production l'heure courante suffit.
-  factory GasStation.fromJson(Map<String, dynamic> json, {DateTime? now}) {
-    final address = json['adresse']?.toString() ?? 'Adresse inconnue';
-    final city = json['ville']?.toString() ?? 'Ville inconnue';
-    final openingHours = _OpeningHours.fromJson(json, now ?? DateTime.now());
+  factory GasStation.fromJson(
+    Map<String, dynamic> json, {
+    DateTime? now,
+  }) {
+    final address =
+        json['adresse']?.toString() ??
+        'Adresse inconnue';
+
+    final city =
+        json['ville']?.toString() ??
+        'Ville inconnue';
+
+    final openingHours =
+        _OpeningHours.fromJson(
+      json,
+      now ?? DateTime.now(),
+    );
+
+    final coordinates =
+        _extractCoordinates(json);
 
     return GasStation(
-      id: json['id']?.toString() ?? '$address-$city',
+      id:
+          json['id']?.toString() ??
+          '$address-$city',
       address: address,
       city: city,
-      distanceInKm: (_toDouble(json['distance_m']) ?? 0) / 1000,
-      isOpen24h: openingHours.isOpen24h,
-      closingTime: openingHours.closingTime,
-      isClosed: openingHours.isClosed,
+      distanceInKm:
+          (_toDouble(json['distance_m']) ?? 0) /
+          1000,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+      isOpen24h:
+          openingHours.isOpen24h,
+      closingTime:
+          openingHours.closingTime,
+      isClosed:
+          openingHours.isClosed,
       pricesByFuel: {
         for (final fuel in FuelType.values)
-          fuel: _toDouble(json[fuel.priceJsonKey]),
+          fuel: _toDouble(
+            json[fuel.priceJsonKey],
+          ),
       },
     );
   }
 
-  static double? _toDouble(dynamic value) {
+  static ({
+    double latitude,
+    double longitude,
+  }) _extractCoordinates(
+    Map<String, dynamic> json,
+  ) {
+    final dynamic geom = json['geom'];
+
+    if (geom is Map) {
+      final latitude =
+          _toDouble(geom['lat']);
+
+      final longitude =
+          _toDouble(geom['lon']);
+
+      if (latitude != null &&
+          longitude != null) {
+        return (
+          latitude: latitude,
+          longitude: longitude,
+        );
+      }
+
+      final dynamic coordinates =
+          geom['coordinates'];
+
+      if (coordinates is List &&
+          coordinates.length >= 2) {
+        final longitude =
+            _toDouble(coordinates[0]);
+
+        final latitude =
+            _toDouble(coordinates[1]);
+
+        if (latitude != null &&
+            longitude != null) {
+          return (
+            latitude: latitude,
+            longitude: longitude,
+          );
+        }
+      }
+    }
+
+    return (
+      latitude: 0,
+      longitude: 0,
+    );
+  }
+
+  static double? _toDouble(
+    dynamic value,
+  ) {
     if (value == null) {
       return null;
     }
@@ -60,12 +141,14 @@ class GasStation {
       return value.toDouble();
     }
 
-    return double.tryParse(value.toString().replaceAll(',', '.'));
+    return double.tryParse(
+      value
+          .toString()
+          .replaceAll(',', '.'),
+    );
   }
 }
 
-/// Interprète les champs d'horaires du jeu de données data.economie.gouv.fr,
-/// qui expose `horaires_jour` sous la forme `Lundi 07.30-20.00, Mardi ...`.
 class _OpeningHours {
   const _OpeningHours({
     required this.isOpen24h,
@@ -74,9 +157,9 @@ class _OpeningHours {
   });
 
   const _OpeningHours.unknown()
-    : isOpen24h = false,
-      closingTime = null,
-      isClosed = false;
+      : isOpen24h = false,
+        closingTime = null,
+        isClosed = false;
 
   final bool isOpen24h;
   final String? closingTime;
@@ -92,8 +175,14 @@ class _OpeningHours {
     'Dimanche',
   ];
 
-  factory _OpeningHours.fromJson(Map<String, dynamic> json, DateTime now) {
-    final automate = json['horaires_automate_24_24']?.toString().toLowerCase();
+  factory _OpeningHours.fromJson(
+    Map<String, dynamic> json,
+    DateTime now,
+  ) {
+    final automate =
+        json['horaires_automate_24_24']
+            ?.toString()
+            .toLowerCase();
 
     if (automate == 'oui') {
       return const _OpeningHours(
@@ -103,8 +192,10 @@ class _OpeningHours {
       );
     }
 
-    final closingTime = _todayClosingTime(
-      json['horaires_jour']?.toString(),
+    final closingTime =
+        _todayClosingTime(
+      json['horaires_jour']
+          ?.toString(),
       now,
     );
 
@@ -112,7 +203,10 @@ class _OpeningHours {
       return const _OpeningHours.unknown();
     }
 
-    if (_isPast(closingTime, now)) {
+    if (_isPast(
+      closingTime,
+      now,
+    )) {
       return const _OpeningHours(
         isOpen24h: false,
         closingTime: null,
@@ -122,64 +216,107 @@ class _OpeningHours {
 
     return _OpeningHours(
       isOpen24h: false,
-      closingTime: '${closingTime.hour}h${_twoDigits(closingTime.minute)}',
+      closingTime:
+          '${closingTime.hour}h'
+          '${_twoDigits(closingTime.minute)}',
       isClosed: false,
     );
   }
 
-  static ({int hour, int minute})? _todayClosingTime(
+  static ({
+    int hour,
+    int minute,
+  })? _todayClosingTime(
     String? dailyHours,
     DateTime now,
   ) {
     final hours = dailyHours?.trim();
 
-    if (hours == null || hours.isEmpty) {
+    if (hours == null ||
+        hours.isEmpty) {
       return null;
     }
 
-    final today = _dayNames[now.weekday - 1];
+    final today =
+        _dayNames[now.weekday - 1];
 
-    for (final entry in hours.split(',')) {
+    for (final entry
+        in hours.split(',')) {
       final text = entry.trim();
 
       if (!text.startsWith(today)) {
         continue;
       }
 
-      final range = text.replaceFirst(today, '').trim().split('-');
+      final range = text
+          .replaceFirst(today, '')
+          .trim()
+          .split('-');
 
       if (range.length != 2) {
         return null;
       }
 
-      return _parseTime(range[1].trim());
+      return _parseTime(
+        range[1].trim(),
+      );
     }
 
     return null;
   }
 
-  static ({int hour, int minute})? _parseTime(String time) {
+  static ({
+    int hour,
+    int minute,
+  })? _parseTime(
+    String time,
+  ) {
     final parts = time.split('.');
 
     if (parts.length != 2) {
       return null;
     }
 
-    final hour = int.tryParse(parts[0]);
-    final minute = int.tryParse(parts[1]);
+    final hour =
+        int.tryParse(parts[0]);
 
-    if (hour == null || minute == null) {
+    final minute =
+        int.tryParse(parts[1]);
+
+    if (hour == null ||
+        minute == null) {
       return null;
     }
 
-    return (hour: hour, minute: minute);
-  }
-
-  static bool _isPast(({int hour, int minute}) time, DateTime now) {
-    return now.isAfter(
-      DateTime(now.year, now.month, now.day, time.hour, time.minute),
+    return (
+      hour: hour,
+      minute: minute,
     );
   }
 
-  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+  static bool _isPast(
+    ({
+      int hour,
+      int minute,
+    }) time,
+    DateTime now,
+  ) {
+    return now.isAfter(
+      DateTime(
+        now.year,
+        now.month,
+        now.day,
+        time.hour,
+        time.minute,
+      ),
+    );
+  }
+
+  static String _twoDigits(
+    int value,
+  ) {
+    return value
+        .toString()
+        .padLeft(2, '0');
+  }
 }
