@@ -8,21 +8,9 @@ import 'gas_station_fixture.dart';
 void main() {
   group('StationMarkerColor', () {
     final List<GasStation> stations = [
-      buildGasStation(
-        id: 'la-moins-chere',
-        price: 1.679,
-        distanceInKm: 4.8,
-      ),
-      buildGasStation(
-        id: 'a-deux-centimes',
-        price: 1.699,
-        distanceInKm: 1.2,
-      ),
-      buildGasStation(
-        id: 'a-cinq-centimes',
-        price: 1.729,
-        distanceInKm: 0.4,
-      ),
+      buildGasStation(id: 'la-moins-chere', price: 1.679, distanceInKm: 4.8),
+      buildGasStation(id: 'a-deux-centimes', price: 1.699, distanceInKm: 1.2),
+      buildGasStation(id: 'a-cinq-centimes', price: 1.729, distanceInKm: 0.4),
     ];
 
     StationMarkerColor colorOf(String id) {

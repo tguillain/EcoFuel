@@ -136,10 +136,7 @@ void main() {
         leclercRueDuPerray(),
       ]);
 
-      expect(groups.map((g) => g.representative.id), [
-        'moinsCher',
-        '44300017',
-      ]);
+      expect(groups.map((g) => g.representative.id), ['moinsCher', '44300017']);
     });
   });
 }

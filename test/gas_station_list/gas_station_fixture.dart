@@ -32,10 +32,7 @@ GasStation buildGasStation({
     // Les autres valent null.
     pricesByFuel: {
       for (final FuelType currentFuel in FuelType.values)
-        currentFuel:
-            currentFuel == fuel
-                ? price
-                : null,
+        currentFuel: currentFuel == fuel ? price : null,
     },
 
     distanceInKm: distanceInKm,

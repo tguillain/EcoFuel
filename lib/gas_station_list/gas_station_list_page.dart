@@ -14,25 +14,18 @@ import 'package:ecofuel/gas_station_list/widget/map/gas_station_map.dart';
 import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
-enum _DisplayMode {
-  list,
-  map,
-}
+enum _DisplayMode { list, map }
 
-class GasStationListPage
-    extends StatefulWidget {
+class GasStationListPage extends StatefulWidget {
   const GasStationListPage({
     super.key,
-    this.service =
-        const GasStationService(),
+    this.service = const GasStationService(),
   });
 
   final GasStationService service;
 
   @override
-  State<GasStationListPage>
-      createState() =>
-          _GasStationListPageState();
+  State<GasStationListPage> createState() => _GasStationListPageState();
 }
 
 class _GasStationListPageState extends State<GasStationListPage>
@@ -57,21 +50,15 @@ class _GasStationListPageState extends State<GasStationListPage>
   /// sont appliqués à l'affichage, seul un changement de rayon relance l'appel.
   List<GasStation> _stations = [];
 
-  UserCoordinates?
-      _userCoordinates;
+  UserCoordinates? _userCoordinates;
 
-  FuelType _selectedFuel =
-      FuelType.e10;
+  FuelType _selectedFuel = FuelType.e10;
 
-  SearchRadius _selectedRadius =
-      SearchRadius.fiveKm;
+  SearchRadius _selectedRadius = SearchRadius.fiveKm;
 
-  GasStationSortCriterion
-      _sortCriterion =
-      GasStationSortCriterion.price;
+  GasStationSortCriterion _sortCriterion = GasStationSortCriterion.price;
 
-  _DisplayMode _displayMode =
-      _DisplayMode.list;
+  _DisplayMode _displayMode = _DisplayMode.list;
 
   bool _isLoading = false;
 
@@ -86,8 +73,7 @@ class _GasStationListPageState extends State<GasStationListPage>
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance
-        .addObserver(this);
+    WidgetsBinding.instance.addObserver(this);
 
     _loadStations();
 
@@ -98,8 +84,7 @@ class _GasStationListPageState extends State<GasStationListPage>
   void dispose() {
     _refreshTimer?.cancel();
 
-    WidgetsBinding.instance
-        .removeObserver(this);
+    WidgetsBinding.instance.removeObserver(this);
 
     super.dispose();
   }
@@ -108,11 +93,8 @@ class _GasStationListPageState extends State<GasStationListPage>
   /// la liste : continuer à interroger l'API y dépenserait
   /// batterie et données pour rien.
   @override
-  void didChangeAppLifecycleState(
-    AppLifecycleState state,
-  ) {
-    if (state ==
-        AppLifecycleState.resumed) {
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
       _startAutoRefresh();
 
       _loadStations(silent: true);
@@ -128,12 +110,9 @@ class _GasStationListPageState extends State<GasStationListPage>
   void _startAutoRefresh() {
     _refreshTimer?.cancel();
 
-    _refreshTimer =
-        Timer.periodic(
+    _refreshTimer = Timer.periodic(
       _refreshInterval,
-      (_) => _loadStations(
-        silent: true,
-      ),
+      (_) => _loadStations(silent: true),
     );
   }
 
@@ -144,9 +123,7 @@ class _GasStationListPageState extends State<GasStationListPage>
   /// liste par un tourniquet ou un message d'échec à chaque
   /// passage serait pire que de garder à l'écran les dernières
   /// données connues.
-  Future<void> _loadStations({
-    bool silent = false,
-  }) async {
+  Future<void> _loadStations({bool silent = false}) async {
     if (!silent) {
       setState(() {
         _isLoading = true;
@@ -155,32 +132,25 @@ class _GasStationListPageState extends State<GasStationListPage>
     }
 
     try {
-      final UserCoordinates coordinates =
-          await widget.service
-              .currentCoordinates();
+      final UserCoordinates coordinates = await widget.service
+          .currentCoordinates();
 
-      final List<GasStation> stations =
-          await widget.service
-              .fetchNearbyStations(
-        radius:
-            _selectedRadius,
-        coordinates:
-            coordinates,
-      );
+      final List<GasStation> stations = await widget.service
+          .fetchNearbyStations(
+            radius: _selectedRadius,
+            coordinates: coordinates,
+          );
 
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _userCoordinates =
-            coordinates;
+        _userCoordinates = coordinates;
 
-        _stations =
-            stations;
+        _stations = stations;
 
-        _lastUpdatedAt =
-            DateTime.now();
+        _lastUpdatedAt = DateTime.now();
 
         _errorMessage = null;
       });
@@ -199,18 +169,12 @@ class _GasStationListPageState extends State<GasStationListPage>
       setState(() {
         _stations = [];
 
-        _errorMessage = error
-            .toString()
-            .replaceFirst(
-              'Exception: ',
-              '',
-            );
+        _errorMessage = error.toString().replaceFirst('Exception: ', '');
       });
     } finally {
       if (mounted && !silent) {
         setState(() {
-          _isLoading =
-              false;
+          _isLoading = false;
         });
       }
     }
@@ -257,12 +221,9 @@ class _GasStationListPageState extends State<GasStationListPage>
   }
 
   /// Changement du carburant.
-  void _onFuelChanged(
-    FuelType fuel,
-  ) {
+  void _onFuelChanged(FuelType fuel) {
     setState(() {
-      _selectedFuel =
-          fuel;
+      _selectedFuel = fuel;
     });
   }
 
@@ -270,13 +231,9 @@ class _GasStationListPageState extends State<GasStationListPage>
   ///
   /// Il n'est pas nécessaire de refaire
   /// un appel API.
-  void _onSortChanged(
-    GasStationSortCriterion
-        criterion,
-  ) {
+  void _onSortChanged(GasStationSortCriterion criterion) {
     setState(() {
-      _sortCriterion =
-          criterion;
+      _sortCriterion = criterion;
     });
   }
 
@@ -284,26 +241,20 @@ class _GasStationListPageState extends State<GasStationListPage>
   ///
   /// Ici on recharge les stations car la zone
   /// de recherche est différente.
-  Future<void> _onRadiusChanged(
-    SearchRadius radius,
-  ) async {
-    if (radius ==
-        _selectedRadius) {
+  Future<void> _onRadiusChanged(SearchRadius radius) async {
+    if (radius == _selectedRadius) {
       return;
     }
 
     setState(() {
-      _selectedRadius =
-          radius;
+      _selectedRadius = radius;
     });
 
     await _loadStations();
   }
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: _errorMessage != null
@@ -351,10 +302,7 @@ class _GasStationListPageState extends State<GasStationListPage>
 
   Widget _buildList() {
     if (_isLoading) {
-      return const Center(
-        child:
-            CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_displayMode == _DisplayMode.map) {
@@ -451,30 +399,18 @@ class _GasStationListPageState extends State<GasStationListPage>
   }
 
   /// Construit la carte.
-  Widget _buildMap(
-    List<GasStation> stations,
-  ) {
-    final UserCoordinates?
-        coordinates =
-        _userCoordinates;
+  Widget _buildMap(List<GasStation> stations) {
+    final UserCoordinates? coordinates = _userCoordinates;
 
     if (coordinates == null) {
-      return const Center(
-        child: Text(
-          'Position utilisateur indisponible.',
-        ),
-      );
+      return const Center(child: Text('Position utilisateur indisponible.'));
     }
 
     return GasStationMap(
-      stations:
-          stations,
-      fuel:
-          _selectedFuel,
-      userCoordinates:
-          coordinates,
-      radius:
-          _selectedRadius,
+      stations: stations,
+      fuel: _selectedFuel,
+      userCoordinates: coordinates,
+      radius: _selectedRadius,
     );
   }
 }
@@ -503,9 +439,8 @@ class _DisplayModeButton extends StatelessWidget {
         color: AppColors.surfaceMuted,
         borderRadius: BorderRadius.circular(_radius),
         child: InkWell(
-          onTap: () => onChanged(
-            showsList ? _DisplayMode.map : _DisplayMode.list,
-          ),
+          onTap: () =>
+              onChanged(showsList ? _DisplayMode.map : _DisplayMode.list),
           borderRadius: BorderRadius.circular(_radius),
           child: SizedBox(
             width: _size,
@@ -553,9 +488,7 @@ class _Attribution extends StatelessWidget {
   }
 }
 
-
-class _MessageState
-    extends StatelessWidget {
+class _MessageState extends StatelessWidget {
   const _MessageState({
     required this.icon,
     required this.message,

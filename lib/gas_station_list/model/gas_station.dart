@@ -135,7 +135,6 @@ class GasStation {
   }
 }
 
-
 class _OpeningHours {
   const _OpeningHours({
     required this.isOpen24h,
@@ -144,9 +143,9 @@ class _OpeningHours {
   });
 
   const _OpeningHours.unknown()
-      : isOpen24h = false,
-        closingTime = null,
-        isClosed = false;
+    : isOpen24h = false,
+      closingTime = null,
+      isClosed = false;
 
   final bool isOpen24h;
   final String? closingTime;
@@ -162,14 +161,8 @@ class _OpeningHours {
     'Dimanche',
   ];
 
-  factory _OpeningHours.fromJson(
-    Map<String, dynamic> json,
-    DateTime now,
-  ) {
-    final automate =
-        json['horaires_automate_24_24']
-            ?.toString()
-            .toLowerCase();
+  factory _OpeningHours.fromJson(Map<String, dynamic> json, DateTime now) {
+    final automate = json['horaires_automate_24_24']?.toString().toLowerCase();
 
     if (automate == 'oui') {
       return const _OpeningHours(
@@ -179,10 +172,8 @@ class _OpeningHours {
       );
     }
 
-    final closingTime =
-        _todayClosingTime(
-      json['horaires_jour']
-          ?.toString(),
+    final closingTime = _todayClosingTime(
+      json['horaires_jour']?.toString(),
       now,
     );
 
@@ -190,10 +181,7 @@ class _OpeningHours {
       return const _OpeningHours.unknown();
     }
 
-    if (_isPast(
-      closingTime,
-      now,
-    )) {
+    if (_isPast(closingTime, now)) {
       return const _OpeningHours(
         isOpen24h: false,
         closingTime: null,
@@ -210,100 +198,62 @@ class _OpeningHours {
     );
   }
 
-  static ({
-    int hour,
-    int minute,
-  })? _todayClosingTime(
+  static ({int hour, int minute})? _todayClosingTime(
     String? dailyHours,
     DateTime now,
   ) {
     final hours = dailyHours?.trim();
 
-    if (hours == null ||
-        hours.isEmpty) {
+    if (hours == null || hours.isEmpty) {
       return null;
     }
 
-    final today =
-        _dayNames[now.weekday - 1];
+    final today = _dayNames[now.weekday - 1];
 
-    for (final entry
-        in hours.split(',')) {
+    for (final entry in hours.split(',')) {
       final text = entry.trim();
 
       if (!text.startsWith(today)) {
         continue;
       }
 
-      final range = text
-          .replaceFirst(today, '')
-          .trim()
-          .split('-');
+      final range = text.replaceFirst(today, '').trim().split('-');
 
       if (range.length != 2) {
         return null;
       }
 
-      return _parseTime(
-        range[1].trim(),
-      );
+      return _parseTime(range[1].trim());
     }
 
     return null;
   }
 
-  static ({
-    int hour,
-    int minute,
-  })? _parseTime(
-    String time,
-  ) {
+  static ({int hour, int minute})? _parseTime(String time) {
     final parts = time.split('.');
 
     if (parts.length != 2) {
       return null;
     }
 
-    final hour =
-        int.tryParse(parts[0]);
+    final hour = int.tryParse(parts[0]);
 
-    final minute =
-        int.tryParse(parts[1]);
+    final minute = int.tryParse(parts[1]);
 
-    if (hour == null ||
-        minute == null) {
+    if (hour == null || minute == null) {
       return null;
     }
 
-    return (
-      hour: hour,
-      minute: minute,
-    );
+    return (hour: hour, minute: minute);
   }
 
-  static bool _isPast(
-    ({
-      int hour,
-      int minute,
-    }) time,
-    DateTime now,
-  ) {
+  static bool _isPast(({int hour, int minute}) time, DateTime now) {
     return now.isAfter(
-      DateTime(
-        now.year,
-        now.month,
-        now.day,
-        time.hour,
-        time.minute,
-      ),
+      DateTime(now.year, now.month, now.day, time.hour, time.minute),
     );
   }
 
-  static String _twoDigits(
-    int value,
-  ) {
-    return value
-        .toString()
-        .padLeft(2, '0');
+  static String _twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
   }
 }

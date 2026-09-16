@@ -168,7 +168,9 @@ void main() {
         tester,
         GasStationCard.standard(station, fuel: FuelType.e10),
       );
-      final standard = tester.widget<Material>(find.byType(Material).last).color;
+      final standard = tester
+          .widget<Material>(find.byType(Material).last)
+          .color;
 
       expect(highlighted, AppColors.primary);
       expect(standard, AppColors.surface);
@@ -198,9 +200,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
 
-      final price = tester.renderObject<RenderBox>(
-        find.byType(RichText).last,
-      );
+      final price = tester.renderObject<RenderBox>(find.byType(RichText).last);
 
       expect(price.size.height, lessThan(40));
     });

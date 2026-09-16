@@ -16,14 +16,17 @@ void main() {
 
   group('GasStation.fromJson', () {
     test('mappe chaque carburant sur son prix', () {
-      final station = GasStation.fromJson(located({
-        'id': '44000001',
-        'adresse': '1 rue de la Paix',
-        'ville': 'Nantes',
-        'distance_m': 1250.0,
-        'gazole_prix': '1,669',
-        'e10_prix': 1.712,
-      }), now: now)!;
+      final station = GasStation.fromJson(
+        located({
+          'id': '44000001',
+          'adresse': '1 rue de la Paix',
+          'ville': 'Nantes',
+          'distance_m': 1250.0,
+          'gazole_prix': '1,669',
+          'e10_prix': 1.712,
+        }),
+        now: now,
+      )!;
 
       expect(station.id, '44000001');
       expect(station.address, '1 rue de la Paix');
@@ -72,19 +75,22 @@ void main() {
     });
 
     test('construit un identifiant de repli sans champ id', () {
-      final station = GasStation.fromJson(located({
-        'adresse': '1 rue de la Paix',
-        'ville': 'Nantes',
-      }), now: now)!;
+      final station = GasStation.fromJson(
+        located({'adresse': '1 rue de la Paix', 'ville': 'Nantes'}),
+        now: now,
+      )!;
 
       expect(station.id, '1 rue de la Paix-Nantes');
     });
 
     test('détecte un automate 24h/24', () {
-      final station = GasStation.fromJson(located({
-        'horaires_automate_24_24': 'Oui',
-        'horaires_jour': 'Mercredi 07.30-20.00',
-      }), now: now)!;
+      final station = GasStation.fromJson(
+        located({
+          'horaires_automate_24_24': 'Oui',
+          'horaires_jour': 'Mercredi 07.30-20.00',
+        }),
+        now: now,
+      )!;
 
       expect(station.isOpen24h, isTrue);
       expect(station.closingTime, isNull);
@@ -92,18 +98,20 @@ void main() {
     });
 
     test('formate l\'heure de fermeture du jour courant', () {
-      final station = GasStation.fromJson(located({
-        'horaires_jour': 'Mardi 07.00-19.00, Mercredi 07.30-20.30',
-      }), now: now)!;
+      final station = GasStation.fromJson(
+        located({'horaires_jour': 'Mardi 07.00-19.00, Mercredi 07.30-20.30'}),
+        now: now,
+      )!;
 
       expect(station.closingTime, '20h30');
       expect(station.isClosed, isFalse);
     });
 
     test('marque la station fermée quand l\'heure est passée', () {
-      final station = GasStation.fromJson(located({
-        'horaires_jour': 'Mercredi 07.30-12.00',
-      }), now: now)!;
+      final station = GasStation.fromJson(
+        located({'horaires_jour': 'Mercredi 07.30-12.00'}),
+        now: now,
+      )!;
 
       expect(station.isClosed, isTrue);
       expect(station.closingTime, isNull);
@@ -111,13 +119,17 @@ void main() {
 
     test('ignore un horaire illisible ou absent du jour', () {
       expect(
-        GasStation.fromJson(located({'horaires_jour': 'n/a'}), now: now)!.closingTime,
+        GasStation.fromJson(
+          located({'horaires_jour': 'n/a'}),
+          now: now,
+        )!.closingTime,
         isNull,
       );
       expect(
-        GasStation.fromJson(located({
-          'horaires_jour': 'Lundi 07.30-20.00',
-        }), now: now)!.closingTime,
+        GasStation.fromJson(
+          located({'horaires_jour': 'Lundi 07.30-20.00'}),
+          now: now,
+        )!.closingTime,
         isNull,
       );
     });

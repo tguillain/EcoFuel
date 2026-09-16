@@ -12,8 +12,7 @@ void showGasStationDetailsSheet({
   required FuelType fuel,
   required VoidCallback onShowRoute,
 }) {
-  final double? price =
-      station.priceFor(fuel);
+  final double? price = station.priceFor(fuel);
 
   showModalBottomSheet(
     context: context,
@@ -21,74 +20,50 @@ void showGasStationDetailsSheet({
     builder: (sheetContext) {
       return SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            20,
-            0,
-            20,
-            24,
-          ),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
           child: Column(
-            mainAxisSize:
-                MainAxisSize.min,
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // =============================
               // ADRESSE
               // =============================
               Row(
                 children: [
-                  const Icon(
-                    Icons.local_gas_station,
-                    size: 30,
-                  ),
-                  const SizedBox(
-                    width: 10,
-                  ),
+                  const Icon(Icons.local_gas_station, size: 30),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       station.address,
-                      style:
-                          const TextStyle(
+                      style: const TextStyle(
                         fontSize: 18,
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
                 ],
               ),
 
-              const SizedBox(
-                height: 6,
-              ),
+              const SizedBox(height: 6),
 
               Text(
                 station.city,
                 style: TextStyle(
-                  color:
-                      Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
 
-              const SizedBox(
-                height: 18,
-              ),
+              const SizedBox(height: 18),
 
               // =============================
               // DISTANCE À VOL D'OISEAU / API
               // =============================
               _InfoLine(
                 icon: Icons.near_me,
-                text:
-                    '${station.distanceInKm.toStringAsFixed(1)} km',
+                text: '${station.distanceInKm.toStringAsFixed(1)} km',
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               // =============================
               // PRIX
@@ -101,43 +76,30 @@ void showGasStationDetailsSheet({
                 bold: true,
               ),
 
-              const SizedBox(
-                height: 12,
-              ),
+              const SizedBox(height: 12),
 
               // =============================
               // HORAIRES
               // =============================
-              _OpeningInfo(
-                station: station,
-              ),
+              _OpeningInfo(station: station),
 
-              const SizedBox(
-                height: 22,
-              ),
+              const SizedBox(height: 22),
 
               // =============================
               // ITINÉRAIRE
               // =============================
               SizedBox(
                 width: double.infinity,
-                child:
-                    FilledButton.icon(
+                child: FilledButton.icon(
                   onPressed: () {
                     // Ferme d'abord le panneau.
-                    Navigator.of(
-                      sheetContext,
-                    ).pop();
+                    Navigator.of(sheetContext).pop();
 
                     // Lance ensuite le calcul de route.
                     onShowRoute();
                   },
-                  icon: const Icon(
-                    Icons.directions,
-                  ),
-                  label: const Text(
-                    'Afficher l’itinéraire',
-                  ),
+                  icon: const Icon(Icons.directions),
+                  label: const Text('Afficher l’itinéraire'),
                 ),
               ),
             ],
@@ -150,41 +112,25 @@ void showGasStationDetailsSheet({
 
 /// Ligne générique composée d'une icône
 /// et d'un texte.
-class _InfoLine
-    extends StatelessWidget {
-  const _InfoLine({
-    required this.icon,
-    required this.text,
-    this.bold = false,
-  });
+class _InfoLine extends StatelessWidget {
+  const _InfoLine({required this.icon, required this.text, this.bold = false});
 
   final IconData icon;
   final String text;
   final bool bold;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: 19,
-        ),
-        const SizedBox(
-          width: 8,
-        ),
+        Icon(icon, size: 19),
+        const SizedBox(width: 8),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
-              fontSize:
-                  bold ? 18 : 14,
-              fontWeight:
-                  bold
-                      ? FontWeight.bold
-                      : FontWeight.normal,
+              fontSize: bold ? 18 : 14,
+              fontWeight: bold ? FontWeight.bold : FontWeight.normal,
             ),
           ),
         ),
@@ -194,37 +140,27 @@ class _InfoLine
 }
 
 /// Affiche l'état d'ouverture de la station.
-class _OpeningInfo
-    extends StatelessWidget {
-  const _OpeningInfo({
-    required this.station,
-  });
+class _OpeningInfo extends StatelessWidget {
+  const _OpeningInfo({required this.station});
 
   final GasStation station;
 
   @override
-  Widget build(
-    BuildContext context,
-  ) {
+  Widget build(BuildContext context) {
     String text;
 
     if (station.isOpen24h) {
       text = 'Ouvert 24h/24';
     } else if (station.isClosed) {
       text = 'Fermé';
-    } else if (
-        station.closingTime != null) {
+    } else if (station.closingTime != null) {
       text =
           'Ferme à '
           '${station.closingTime}';
     } else {
-      text =
-          'Horaires indisponibles';
+      text = 'Horaires indisponibles';
     }
 
-    return _InfoLine(
-      icon: Icons.access_time,
-      text: text,
-    );
+    return _InfoLine(icon: Icons.access_time, text: text);
   }
 }

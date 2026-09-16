@@ -8,9 +8,7 @@ class MapZoom {
   const MapZoom._();
 
   /// Retourne le niveau de zoom adapté au rayon.
-  static double forRadius(
-    SearchRadius radius,
-  ) {
+  static double forRadius(SearchRadius radius) {
     final int km = radius.inKm;
 
     // Rayon de 5 km :

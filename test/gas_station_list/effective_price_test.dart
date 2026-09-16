@@ -91,10 +91,7 @@ void main() {
         buildGasStation(id: 'avecPrix', price: 1.900, distanceInKm: 30),
       ]..sort(GasStationSortCriterion.bestValue.comparatorFor(FuelType.e10));
 
-      expect(stations.map((station) => station.id), [
-        'avecPrix',
-        'sansPrix',
-      ]);
+      expect(stations.map((station) => station.id), ['avecPrix', 'sansPrix']);
     });
 
     test('limite l\'affichage à dix stations, les autres critères non', () {

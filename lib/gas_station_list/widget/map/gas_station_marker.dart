@@ -23,10 +23,7 @@ Marker buildGasStationMarker({
   final bool isHighlighted = markerColor.isHighlighted;
 
   return Marker(
-    point: LatLng(
-      station.latitude,
-      station.longitude,
-    ),
+    point: LatLng(station.latitude, station.longitude),
     width: 108,
     height: 74,
     child: GestureDetector(
@@ -47,10 +44,7 @@ Marker buildGasStationMarker({
           // PRIX
           // =============================
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
@@ -68,14 +62,10 @@ Marker buildGasStationMarker({
               ],
             ),
             child: Text(
-              price == null
-                  ? '--'
-                  : '${price.toStringAsFixed(3)} €',
+              price == null ? '--' : '${price.toStringAsFixed(3)} €',
               style: TextStyle(
                 fontSize: isHighlighted ? 13 : 12,
-                fontWeight: isHighlighted
-                    ? FontWeight.bold
-                    : FontWeight.w500,
+                fontWeight: isHighlighted ? FontWeight.bold : FontWeight.w500,
                 color: markerColor.color,
               ),
             ),
