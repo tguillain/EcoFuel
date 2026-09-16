@@ -39,6 +39,51 @@ void main() {
       expect(find.text('1,669 €/L', findRichText: true), findsOneWidget);
     });
 
+    // Le fichier de l'État ne porte pas d'enseigne : quand une source tierce
+    // la fournit, elle prend le titre. La commune reste en ligne secondaire,
+    // l'adresse complète appartenant à la fiche de la station.
+    testWidgets('titre par l\'enseigne quand elle est connue', (tester) async {
+      await pumpCard(
+        tester,
+        GasStationCard.standard(
+          buildGasStation(
+            id: 'station',
+            price: 1.669,
+            distanceInKm: 1.2,
+            address: '205 ROUTE DE VANNES',
+            city: 'Orvault',
+            brand: 'Intermarché',
+          ),
+          fuel: FuelType.e10,
+        ),
+      );
+
+      expect(find.text('Intermarché'), findsOneWidget);
+      expect(find.textContaining('Orvault'), findsOneWidget);
+      expect(find.textContaining('ROUTE DE VANNES'), findsNothing);
+    });
+
+    // Sans enseigne, l'adresse fait office de titre — remise en forme, la
+    // casse du flux de l'État étant irrégulière.
+    testWidgets('retombe sur l\'adresse remise en forme', (tester) async {
+      await pumpCard(
+        tester,
+        GasStationCard.standard(
+          buildGasStation(
+            id: 'station',
+            price: 1.669,
+            distanceInKm: 1.2,
+            address: '205 ROUTE DE VANNES',
+            city: 'Orvault',
+          ),
+          fuel: FuelType.e10,
+        ),
+      );
+
+      expect(find.text('205 route de Vannes'), findsOneWidget);
+      expect(find.textContaining('Orvault'), findsOneWidget);
+    });
+
     testWidgets('annonce une station ouverte 24h/24', (tester) async {
       await pumpCard(
         tester,

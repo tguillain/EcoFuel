@@ -36,6 +36,66 @@ void main() {
       expect(find.text('2 stations'), findsOneWidget);
     });
 
+    // Deux E.Leclerc dans la même commune n'ont aucun champ qui les
+    // distingue : l'adresse revient sur ces cartes-là, et sur elles seules.
+    testWidgets('désambiguïse deux stations de même enseigne et commune', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            buildGasStation(
+              id: 'paris',
+              price: 2.169,
+              distanceInKm: 4.5,
+              brand: 'E.Leclerc',
+              city: 'Nantes',
+              address: '14 ROUTE DE PARIS',
+            ),
+            buildGasStation(
+              id: 'perray',
+              price: 2.169,
+              distanceInKm: 4.5,
+              brand: 'E.Leclerc',
+              city: 'Nantes',
+              address: '95 RUE DU PERRAY',
+            ),
+            buildGasStation(
+              id: 'seule',
+              price: 2.20,
+              distanceInKm: 3,
+              brand: 'Avia',
+              city: 'Nantes',
+              address: '1 RUE DU CROISSANT',
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('14 route de Paris'), findsOneWidget);
+      expect(find.textContaining('95 rue du Perray'), findsOneWidget);
+
+      // La station sans homonyme garde une ligne secondaire épurée.
+      expect(find.textContaining('1 rue du Croissant'), findsNothing);
+    });
+
+    // La licence ODbL impose de créditer OpenStreetMap dès qu'on affiche les
+    // enseignes : les crédits ferment la liste.
+    testWidgets('crédite les sources en fin de liste', (tester) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('OpenStreetMap'), findsOneWidget);
+      expect(find.textContaining('data.economie.gouv.fr'), findsOneWidget);
+    });
+
     testWidgets('met en avant la station la moins chère', (tester) async {
       await pumpPage(
         tester,

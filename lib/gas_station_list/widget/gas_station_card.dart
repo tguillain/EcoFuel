@@ -1,4 +1,5 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
+import 'package:ecofuel/gas_station_list/formatter/address_formatter.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -10,6 +11,8 @@ class GasStationCard extends StatelessWidget {
     required this.station,
     required this.fuel,
     required this.isHighlighted,
+    required this.showAddress,
+    required this.pointCount,
     this.onTap,
   });
 
@@ -18,12 +21,16 @@ class GasStationCard extends StatelessWidget {
     required FuelType fuel,
     Key? key,
     VoidCallback? onTap,
+    bool showAddress = false,
+    int pointCount = 1,
   }) => GasStationCard._(
     key: key,
     station: station,
     fuel: fuel,
     isHighlighted: false,
     onTap: onTap,
+    showAddress: showAddress,
+    pointCount: pointCount,
   );
 
   factory GasStationCard.highlighted(
@@ -31,13 +38,22 @@ class GasStationCard extends StatelessWidget {
     required FuelType fuel,
     Key? key,
     VoidCallback? onTap,
+    bool showAddress = false,
+    int pointCount = 1,
   }) => GasStationCard._(
     key: key,
     station: station,
     fuel: fuel,
     isHighlighted: true,
     onTap: onTap,
+    showAddress: showAddress,
+    pointCount: pointCount,
   );
+
+  /// Ce que la carte affichera en titre. Exposé pour que la liste puisse
+  /// repérer deux stations qui se ressembleraient trop.
+  static String titleFor(GasStation station) =>
+      station.brand ?? AddressFormatter.format(station.address);
 
   static const double _radius = 22;
   static const double _padding = 18;
@@ -51,11 +67,28 @@ class GasStationCard extends StatelessWidget {
   final bool isHighlighted;
   final VoidCallback? onTap;
 
-  /// Le design réunit ville, distance et horaire sur une seule ligne
-  /// secondaire, séparées par des points médians.
+  /// Réaffiche l'adresse, que la liste demande quand deux stations de la même
+  /// enseigne et de la même commune seraient autrement indiscernables.
+  final bool showAddress;
+
+  /// Nombre de points de distribution regroupés sur cette carte.
+  final int pointCount;
+
+  /// L'enseigne fait un bien meilleur titre que l'adresse. À défaut, l'adresse
+  /// est remise en forme : celle de l'API arrive en casse irrégulière.
+  String get _title => titleFor(station);
+
+  /// Le design réunit les informations secondaires sur une seule ligne,
+  /// séparées par des points médians. L'adresse complète appartient à la fiche
+  /// de la station, pas à la liste : la commune suffit à se situer, sauf
+  /// quand elle ne suffit plus.
   String get _subtitle {
     final parts = [
+      // Inutile quand l'adresse occupe déjà le titre, faute d'enseigne.
+      if (showAddress && station.brand != null)
+        AddressFormatter.format(station.address),
       station.city,
+      if (pointCount > 1) '$pointCount points de distribution',
       '${_distanceFormat.format(station.distanceInKm)} km',
       if (station.isOpen24h)
         '24h/24'
@@ -116,7 +149,7 @@ class GasStationCard extends StatelessWidget {
                       spacing: 4,
                       children: [
                         Text(
-                          station.address,
+                          _title,
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,

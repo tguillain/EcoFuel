@@ -11,6 +11,9 @@ GasStation buildGasStation({
   bool isOpen24h = false,
   String? closingTime,
   bool isClosed = false,
+  String? brand,
+  double? latitude,
+  double? longitude,
 }) {
   return GasStation(
     id: id,
@@ -21,5 +24,8 @@ GasStation buildGasStation({
     isOpen24h: isOpen24h,
     closingTime: closingTime,
     isClosed: isClosed,
+    brand: brand,
+    latitude: latitude,
+    longitude: longitude,
   );
 }

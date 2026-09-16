@@ -2,6 +2,7 @@ import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
+import 'package:ecofuel/gas_station_list/model/gas_station_group.dart';
 import 'package:ecofuel/gas_station_list/service/gas_station_service.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_filter_bar.dart';
@@ -84,14 +85,17 @@ class _GasStationListPageState extends State<GasStationListPage> {
     }
   }
 
-  List<GasStation> get _visibleStations {
+  /// Une carte par site : les points de distribution d'un même site sont
+  /// regroupés après le tri, chaque groupe prenant le rang de son meilleur
+  /// élément.
+  List<GasStationGroup> get _visibleGroups {
     final stations = _stations
         .where((station) => station.priceFor(_selectedFuel) != null)
         .toList();
 
     stations.sort(_sortCriterion.comparatorFor(_selectedFuel));
 
-    return stations;
+    return GasStationGrouper.group(stations, fuel: _selectedFuel);
   }
 
   String get _headerTitle {
@@ -99,7 +103,7 @@ class _GasStationListPageState extends State<GasStationListPage> {
       return 'Recherche…';
     }
 
-    final count = _visibleStations.length;
+    final count = _visibleGroups.length;
 
     return '$count station${count > 1 ? 's' : ''}';
   }
@@ -175,13 +179,13 @@ class _GasStationListPageState extends State<GasStationListPage> {
       return const Center(child: CircularProgressIndicator());
     }
 
-    final stations = _visibleStations;
+    final groups = _visibleGroups;
 
     // Le tiré-pour-rafraîchir remplace le bouton Actualiser de l'ancienne
     // AppBar : il doit rester atteignable même sans station à faire défiler.
     return RefreshIndicator(
       onRefresh: _loadStations,
-      child: stations.isEmpty
+      child: groups.isEmpty
           ? _MessageState(
               icon: Icons.local_gas_station_outlined,
               message:
@@ -190,12 +194,34 @@ class _GasStationListPageState extends State<GasStationListPage> {
               onRetry: _loadStations,
               isScrollable: true,
             )
-          : _buildStationList(stations),
+          : _buildStationList(groups),
     );
   }
 
-  Widget _buildStationList(List<GasStation> stations) {
-    final cheapestId = stations
+  /// Deux sites de la même enseigne dans la même commune n'affichent aucune
+  /// différence : mêmes titre, ville et horaires, et des distances qui
+  /// s'arrondissent souvent au même dixième. La liste est seule à pouvoir le
+  /// constater, puisqu'elle voit toutes les cartes.
+  static Set<String> _collidingLabels(List<GasStationGroup> groups) {
+    final seen = <String>{};
+    final colliding = <String>{};
+
+    for (final group in groups) {
+      if (!seen.add(_labelOf(group))) {
+        colliding.add(_labelOf(group));
+      }
+    }
+
+    return colliding;
+  }
+
+  static String _labelOf(GasStationGroup group) =>
+      '${GasStationCard.titleFor(group.representative)}'
+      '|${group.representative.city}';
+
+  Widget _buildStationList(List<GasStationGroup> groups) {
+    final cheapestId = groups
+        .map((group) => group.representative)
         .reduce(
           (cheapest, station) =>
               station.priceFor(_selectedFuel)! <
@@ -205,23 +231,59 @@ class _GasStationListPageState extends State<GasStationListPage> {
         )
         .id;
 
+    final colliding = _collidingLabels(groups);
+
     return ListView.builder(
       padding: _listPadding,
-      itemCount: stations.length,
+      // Une entrée de plus que de cartes : les crédits ferment la liste.
+      itemCount: groups.length + 1,
       itemBuilder: (context, index) {
-        final station = stations[index];
+        if (index == groups.length) {
+          return const _Attribution();
+        }
+
+        final group = groups[index];
+        final station = group.representative;
         final key = ValueKey(station.id);
+        final showAddress = colliding.contains(_labelOf(group));
 
         if (station.id == cheapestId) {
           return GasStationCard.highlighted(
             station,
             fuel: _selectedFuel,
             key: key,
+            showAddress: showAddress,
+            pointCount: group.pointCount,
           );
         }
 
-        return GasStationCard.standard(station, fuel: _selectedFuel, key: key);
+        return GasStationCard.standard(
+          station,
+          fuel: _selectedFuel,
+          key: key,
+          showAddress: showAddress,
+          pointCount: group.pointCount,
+        );
       },
+    );
+  }
+}
+
+/// La licence ODbL d'OpenStreetMap impose de créditer les contributeurs dès
+/// lors qu'on affiche leurs données — ici les enseignes des stations.
+class _Attribution extends StatelessWidget {
+  const _Attribution();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 10, 4, 4),
+      child: Text(
+        'Prix : data.economie.gouv.fr · '
+        'Enseignes : © les contributeurs OpenStreetMap',
+        textAlign: TextAlign.center,
+        style: const TextStyle(fontSize: 11, color: AppColors.onSurfaceFaint),
+      ),
     );
   }
 }

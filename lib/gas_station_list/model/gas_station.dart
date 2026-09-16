@@ -10,6 +10,9 @@ class GasStation {
     required this.isOpen24h,
     required this.closingTime,
     required this.isClosed,
+    this.brand,
+    this.latitude,
+    this.longitude,
   });
 
   final String id;
@@ -27,14 +30,28 @@ class GasStation {
 
   final bool isClosed;
 
+  /// Enseigne (Total, Intermarché…), absente du fichier de l'État : elle vient
+  /// d'une source tierce et peut ne pas être connue.
+  final String? brand;
+
+  /// Coordonnées de la station, nécessaires au regroupement des points de
+  /// distribution d'un même site et à l'itinéraire.
+  final double? latitude;
+  final double? longitude;
+
   double? priceFor(FuelType fuel) => pricesByFuel[fuel];
 
   /// [now] n'existe que pour rendre l'interprétation des horaires testable ;
   /// en production l'heure courante suffit.
-  factory GasStation.fromJson(Map<String, dynamic> json, {DateTime? now}) {
+  factory GasStation.fromJson(
+    Map<String, dynamic> json, {
+    DateTime? now,
+    String? brand,
+  }) {
     final address = json['adresse']?.toString() ?? 'Adresse inconnue';
     final city = json['ville']?.toString() ?? 'Ville inconnue';
     final openingHours = _OpeningHours.fromJson(json, now ?? DateTime.now());
+    final geom = json['geom'] as Map<String, dynamic>?;
 
     return GasStation(
       id: json['id']?.toString() ?? '$address-$city',
@@ -44,6 +61,9 @@ class GasStation {
       isOpen24h: openingHours.isOpen24h,
       closingTime: openingHours.closingTime,
       isClosed: openingHours.isClosed,
+      brand: brand,
+      latitude: _toDouble(geom?['lat']),
+      longitude: _toDouble(geom?['lon']),
       pricesByFuel: {
         for (final fuel in FuelType.values)
           fuel: _toDouble(json[fuel.priceJsonKey]),
