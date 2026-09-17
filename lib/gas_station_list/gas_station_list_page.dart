@@ -184,9 +184,6 @@ class _GasStationListPageState extends State<GasStationListPage>
   /// site — un site déclarant plusieurs points de distribution ne compte que
   /// pour une carte.
   ///
-  /// Certains critères ne gardent que les meilleurs : la troncature suit le
-  /// regroupement, sinon deux portiques d'un même site consommeraient deux
-  /// places du Top 10.
   List<GasStationGroup> get _visibleGroups {
     final stations = _stations
         .where((station) => station.priceFor(_selectedFuel) != null)
@@ -194,14 +191,7 @@ class _GasStationListPageState extends State<GasStationListPage>
 
     stations.sort(_sortCriterion.comparatorFor(_selectedFuel));
 
-    final groups = GasStationGrouper.group(stations, fuel: _selectedFuel);
-    final maxResults = _sortCriterion.maxResults;
-
-    if (maxResults == null || groups.length <= maxResults) {
-      return groups;
-    }
-
-    return groups.take(maxResults).toList();
+    return GasStationGrouper.group(stations, fuel: _selectedFuel);
   }
 
   /// La carte place un repère par point de distribution : le regroupement est
