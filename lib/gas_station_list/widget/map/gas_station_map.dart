@@ -100,31 +100,35 @@ class _GasStationMapState extends State<GasStationMap> {
     );
   }
 
-  /// Stations et leur couleur, triées du gris vers le vert.
+  /// Stations et leur couleur, de la plus chère à la moins chère.
   ///
   /// L'ordre de la liste est l'ordre de dessin : les
   /// meilleurs prix passent ainsi au-dessus des autres.
-  List<({GasStation station, StationMarkerColor color})> _markerEntries() {
+  List<({GasStation station, Color color})> _markerEntries() {
     final List<GasStation> stations = _visibleStations;
 
-    final List<({GasStation station, StationMarkerColor color})> entries =
-        stations
-            .map(
-              (station) => (
-                station: station,
-                color: StationMarkerColor.forStation(
-                  station: station,
-                  stations: stations,
-                  fuel: widget.fuel,
-                ),
-              ),
-            )
-            .toList();
+    final List<({GasStation station, Color color})> entries = stations
+        .map(
+          (station) => (
+            station: station,
+            color: StationMarkerColor.forStation(
+              station: station,
+              stations: stations,
+              fuel: widget.fuel,
+            ),
+          ),
+        )
+        .toList();
 
-    entries.sort((a, b) => b.color.index.compareTo(a.color.index));
+    entries.sort((a, b) => _priceOf(b.station).compareTo(_priceOf(a.station)));
 
     return entries;
   }
+
+  /// Prix de la station pour le carburant choisi. Une station sans prix passe
+  /// pour la plus chère, donc sous les autres marqueurs.
+  double _priceOf(GasStation station) =>
+      station.priceFor(widget.fuel) ?? double.infinity;
 
   @override
   void didUpdateWidget(covariant GasStationMap oldWidget) {
@@ -250,7 +254,7 @@ class _GasStationMapState extends State<GasStationMap> {
 
   @override
   Widget build(BuildContext context) {
-    final List<({GasStation station, StationMarkerColor color})> markerEntries =
+    final List<({GasStation station, Color color})> markerEntries =
         _markerEntries();
 
     return Stack(
@@ -442,10 +446,12 @@ class _GasStationMapState extends State<GasStationMap> {
 
 /// Rappelle ce que signale la couleur d'un marqueur.
 ///
-/// Seules les stations au bon prix sont colorées, la
-/// légende n'a donc que deux niveaux à expliquer.
+/// Le dégradé est relatif aux stations affichées : la légende en nomme les
+/// deux extrémités, sans prétendre à un prix absolu.
 class _PriceLegend extends StatelessWidget {
   const _PriceLegend({required this.fuel});
+
+  static const double _barWidth = 104;
 
   final FuelType fuel;
 
@@ -465,48 +471,32 @@ class _PriceLegend extends StatelessWidget {
             'Prix ${fuel.label}',
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 4),
-          const _LegendLine(
-            color: StationMarkerColor.best,
-            text: 'Meilleur prix',
-          ),
-          const _LegendLine(
-            color: StationMarkerColor.cheap,
-            text: 'À 3 centimes près',
-          ),
-          const _LegendLine(
-            color: StationMarkerColor.regular,
-            text: 'Au-dessus',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LegendLine extends StatelessWidget {
-  const _LegendLine({required this.color, required this.text});
-
-  final StationMarkerColor color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+          const SizedBox(height: 6),
           Container(
-            width: 9,
-            height: 9,
+            width: _barWidth,
+            height: 8,
             decoration: BoxDecoration(
-              color: color.color,
-              shape: BoxShape.circle,
+              borderRadius: BorderRadius.circular(4),
+              gradient: const LinearGradient(
+                colors: [
+                  StationMarkerColor.cheapest,
+                  StationMarkerColor.middle,
+                  StationMarkerColor.dearest,
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 6),
-          Text(text, style: const TextStyle(fontSize: 11)),
+          const SizedBox(height: 3),
+          const SizedBox(
+            width: _barWidth,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Moins cher', style: TextStyle(fontSize: 10)),
+                Text('Plus cher', style: TextStyle(fontSize: 10)),
+              ],
+            ),
+          ),
         ],
       ),
     );

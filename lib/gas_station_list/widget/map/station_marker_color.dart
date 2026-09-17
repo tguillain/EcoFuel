@@ -2,40 +2,36 @@ import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:flutter/material.dart';
 
-/// Couleur du marqueur d'une station sur la carte.
+/// Couleur du marqueur d'une station, du vert au rouge selon son prix.
 ///
-/// Seul un prix bas est coloré : le vert signale les stations qui valent le
-/// détour, tout le reste reste gris. Colorer aussi les stations chères ferait
-/// trois familles de couleurs à comparer alors que l'utilisateur ne cherche
-/// que les moins chères.
+/// Le dégradé situe chaque station entre le meilleur et le pire prix
+/// affichés : vert au moins cher, rouge au plus cher. L'orange au milieu n'est
+/// pas décoratif — interpoler directement du vert au rouge traverse des bruns
+/// ternes où deux prix voisins deviennent indistinguables.
 ///
-/// La distance n'intervient pas ici : elle est déjà lisible sur la carte par
-/// la position du marqueur, la couleur ne parle que du prix.
-enum StationMarkerColor {
-  /// Le prix le plus bas parmi les stations affichées.
-  best(Color.fromRGBO(27, 94, 32, 1)),
+/// L'échelle est relative à la liste du moment, pas absolue. Si toutes les
+/// stations se tiennent en deux centimes, l'écart est quand même étalé sur
+/// toute la palette : c'est justement ce qui permet de les départager.
+abstract final class StationMarkerColor {
+  /// Le prix le plus bas de la liste.
+  static const Color cheapest = Color.fromRGBO(27, 94, 32, 1);
 
-  /// À quelques centimes du meilleur prix : encore intéressant.
-  cheap(Color.fromRGBO(67, 160, 71, 1)),
+  /// À mi-chemin entre les deux extrêmes.
+  static const Color middle = Color.fromRGBO(239, 138, 0, 1);
 
-  /// Tout le reste, y compris les stations sans prix connu.
-  regular(Color.fromRGBO(117, 124, 130, 1));
+  /// Le prix le plus haut de la liste.
+  static const Color dearest = Color.fromRGBO(183, 28, 28, 1);
 
-  const StationMarkerColor(this.color);
+  /// Station dont le prix est inconnu pour le carburant choisi.
+  static const Color unknown = Color.fromRGBO(117, 124, 130, 1);
 
-  final Color color;
+  /// En deçà de cet écart entre le prix le plus bas et le plus haut, la liste
+  /// est tenue pour uniforme : un dixième de centime ne se lit pas à
+  /// l'affichage, et l'étaler sur toute la palette ferait passer pour chère
+  /// une station au même prix que les autres.
+  static const double _flatSpread = 0.001;
 
-  /// Écart maximal avec le meilleur prix, en euros par litre, au-delà duquel
-  /// une station n'est plus mise en avant.
-  static const double _cheapThreshold = 0.03;
-
-  /// Tolérance d'égalité : deux stations au même prix affiché doivent être
-  /// vertes toutes les deux, malgré les arrondis en virgule flottante.
-  static const double _tiePrecision = 0.001;
-
-  bool get isHighlighted => this != StationMarkerColor.regular;
-
-  static StationMarkerColor forStation({
+  static Color forStation({
     required GasStation station,
     required List<GasStation> stations,
     required FuelType fuel,
@@ -43,38 +39,38 @@ enum StationMarkerColor {
     final double? price = station.priceFor(fuel);
 
     if (price == null) {
-      return StationMarkerColor.regular;
+      return unknown;
     }
 
-    final double? cheapestPrice = _cheapestPrice(stations, fuel);
-
-    if (cheapestPrice == null) {
-      return StationMarkerColor.regular;
-    }
-
-    final double difference = price - cheapestPrice;
-
-    if (difference <= _tiePrecision) {
-      return StationMarkerColor.best;
-    }
-
-    if (difference <= _cheapThreshold) {
-      return StationMarkerColor.cheap;
-    }
-
-    return StationMarkerColor.regular;
-  }
-
-  static double? _cheapestPrice(List<GasStation> stations, FuelType fuel) {
     final List<double> prices = stations
         .map((station) => station.priceFor(fuel))
         .whereType<double>()
         .toList();
 
     if (prices.isEmpty) {
-      return null;
+      return unknown;
     }
 
-    return prices.reduce((a, b) => a < b ? a : b);
+    final double lowest = prices.reduce((a, b) => a < b ? a : b);
+    final double highest = prices.reduce((a, b) => a > b ? a : b);
+    final double spread = highest - lowest;
+
+    if (spread <= _flatSpread) {
+      return cheapest;
+    }
+
+    return atRatio((price - lowest) / spread);
+  }
+
+  /// Couleur du dégradé à [ratio], de 0 pour le moins cher à 1 pour le plus
+  /// cher. La palette est parcourue en deux moitiés pour passer par l'orange.
+  static Color atRatio(double ratio) {
+    final double clamped = ratio.clamp(0.0, 1.0);
+
+    if (clamped <= 0.5) {
+      return Color.lerp(cheapest, middle, clamped * 2)!;
+    }
+
+    return Color.lerp(middle, dearest, (clamped - 0.5) * 2)!;
   }
 }
