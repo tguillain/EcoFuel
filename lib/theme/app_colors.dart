@@ -24,4 +24,10 @@ abstract final class AppColors {
 
   /// Surtitre du compteur et informations secondaires des cartes.
   static const Color onSurfaceFaint = Color.fromRGBO(138, 137, 131, 1);
+
+  /// Bordure séparant les panneaux de la fiche station.
+  static const Color outline = Color.fromRGBO(228, 226, 219, 1);
+
+  /// Filet entre deux lignes de prix de la fiche station.
+  static const Color divider = Color.fromRGBO(236, 234, 227, 1);
 }

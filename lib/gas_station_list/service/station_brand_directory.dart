@@ -41,8 +41,30 @@ class OverpassStationBrandDirectory implements StationBrandDirectory {
   static const String _endpoint = 'https://overpass-api.de/api/interpreter';
   static const Duration _timeout = Duration(seconds: 12);
 
+  /// Overpass répond souvent 504 quand il est chargé, puis passe au second
+  /// essai : un seul échec suffirait sinon à priver toute la liste d'enseignes.
+  static const int _attempts = 2;
+  static const Duration _retryDelay = Duration(seconds: 2);
+
   @override
   Future<List<BrandedLocation>> brandsAround({
+    required UserCoordinates center,
+    required SearchRadius radius,
+  }) async {
+    for (var attempt = 1; ; attempt++) {
+      try {
+        return await _fetch(center: center, radius: radius);
+      } catch (_) {
+        if (attempt >= _attempts) {
+          rethrow;
+        }
+
+        await Future<void>.delayed(_retryDelay);
+      }
+    }
+  }
+
+  Future<List<BrandedLocation>> _fetch({
     required UserCoordinates center,
     required SearchRadius radius,
   }) async {
@@ -101,6 +123,44 @@ class OverpassStationBrandDirectory implements StationBrandDirectory {
   }
 }
 
+/// Garde les dernières enseignes obtenues et les ressert quand la source
+/// échoue : la liste se rafraîchit chaque minute, et un seul refus d'Overpass
+/// ferait sinon disparaître les noms de toutes les stations d'un coup.
+///
+/// Des enseignes relevées ailleurs, après un déplacement, sont sans danger :
+/// trop loin des nouvelles stations, elles ne s'y rapprochent pas.
+class CachingStationBrandDirectory implements StationBrandDirectory {
+  CachingStationBrandDirectory(this._source);
+
+  final StationBrandDirectory _source;
+
+  List<BrandedLocation>? _lastBrands;
+
+  @override
+  Future<List<BrandedLocation>> brandsAround({
+    required UserCoordinates center,
+    required SearchRadius radius,
+  }) async {
+    try {
+      final brands = await _source.brandsAround(center: center, radius: radius);
+
+      _lastBrands = brands;
+
+      return brands;
+    } catch (error) {
+      final lastBrands = _lastBrands;
+
+      if (lastBrands == null) {
+        rethrow;
+      }
+
+      debugReportBrandFailure(error);
+
+      return lastBrands;
+    }
+  }
+}
+
 /// Aucune enseigne : les stations retombent sur leur adresse. Sert de repli en
 /// test et quand l'enrichissement est désactivé.
 class EmptyStationBrandDirectory implements StationBrandDirectory {
@@ -115,11 +175,12 @@ class EmptyStationBrandDirectory implements StationBrandDirectory {
 
 /// Rapproche une station de l'enseigne relevée la plus proche.
 ///
-/// Les deux sources géocodent indépendamment : au-delà de [toleranceInMeters]
-/// on considère qu'il s'agit d'une autre station et on préfère ne rien
+/// Les deux sources géocodent indépendamment, et une grande surface place
+/// parfois ses pompes à 200 m de l'adresse déclarée à l'État. Au-delà de
+/// [toleranceInMeters] on considère qu'il s'agit d'une autre station et on préfère ne rien
 /// afficher plutôt qu'une marque fausse.
 abstract final class BrandMatcher {
-  static const double toleranceInMeters = 150;
+  static const double toleranceInMeters = 250;
 
   static String? nearestBrand(
     List<BrandedLocation> brands, {

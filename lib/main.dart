@@ -1,12 +1,20 @@
 import 'package:ecofuel/config/app_config.dart';
 import 'package:ecofuel/gas_station_list/gas_station_list_page.dart';
 import 'package:ecofuel/gas_station_list/service/gas_station_service.dart';
+import 'package:ecofuel/gas_station_list/service/station_brand_directory.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
 import 'package:ecofuel/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 void main() {
-  runApp(EcoFuelApp(service: GasStationService(_buildLocator())));
+  runApp(
+    EcoFuelApp(
+      service: GasStationService(
+        _buildLocator(),
+        CachingStationBrandDirectory(const OverpassStationBrandDirectory()),
+      ),
+    ),
+  );
 }
 
 /// Sans `--dart-define`, l'application interroge le GPS comme en production :
