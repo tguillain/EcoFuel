@@ -6,16 +6,55 @@ void main() {
   // Un mercredi, à 14h00.
   final now = DateTime(2026, 9, 9, 14);
 
+  /// Toute station renvoyée par l'API porte une géométrie, le filtre
+  /// within_distance l'exigeant : les charges utiles de test en portent donc
+  /// une, sauf là où son absence est précisément ce qu'on vérifie.
+  Map<String, dynamic> located(Map<String, dynamic> json) => {
+    'geom': {'lat': 47.2184, 'lon': -1.5536},
+    ...json,
+  };
+
   group('GasStation.fromJson', () {
+    test('lit le code postal, la date des relevés et les services', () {
+      final station = GasStation.fromJson(
+        located({
+          'cp': '44300',
+          'e10_prix': 2.239,
+          'e10_maj': '2026-10-01T09:35:47+00:00',
+          'sp95_maj': null,
+          'services_service': ['Station de gonflage', 'Lavage manuel'],
+        }),
+        now: now,
+      )!;
+
+      expect(station.postalCode, '44300');
+      expect(
+        station.priceUpdatedAtFor(FuelType.e10),
+        DateTime.utc(2026, 10, 1, 9, 35, 47),
+      );
+      expect(station.priceUpdatedAtFor(FuelType.sp95), isNull);
+      expect(station.services, ['Station de gonflage', 'Lavage manuel']);
+    });
+
+    test('se passe des services quand l\'API n\'en déclare aucun', () {
+      final station = GasStation.fromJson(located({}), now: now)!;
+
+      expect(station.services, isEmpty);
+      expect(station.postalCode, isNull);
+    });
+
     test('mappe chaque carburant sur son prix', () {
-      final station = GasStation.fromJson({
-        'id': '44000001',
-        'adresse': '1 rue de la Paix',
-        'ville': 'Nantes',
-        'distance_m': 1250.0,
-        'gazole_prix': '1,669',
-        'e10_prix': 1.712,
-      }, now: now);
+      final station = GasStation.fromJson(
+        located({
+          'id': '44000001',
+          'adresse': '1 rue de la Paix',
+          'ville': 'Nantes',
+          'distance_m': 1250.0,
+          'gazole_prix': '1,669',
+          'e10_prix': 1.712,
+        }),
+        now: now,
+      )!;
 
       expect(station.id, '44000001');
       expect(station.address, '1 rue de la Paix');
@@ -24,10 +63,36 @@ void main() {
       expect(station.priceFor(FuelType.diesel), 1.669);
       expect(station.priceFor(FuelType.e10), 1.712);
       expect(station.priceFor(FuelType.sp98), isNull);
+      expect(station.latitude, 47.2184);
+      expect(station.longitude, -1.5536);
+    });
+
+    // Plutôt que d'inventer une position, qui placerait la station au large du
+    // golfe de Guinée et fausserait carte comme regroupement.
+    test('écarte une station sans géométrie exploitable', () {
+      expect(GasStation.fromJson({}, now: now), isNull);
+      expect(GasStation.fromJson({'geom': 'n/a'}, now: now), isNull);
+      expect(
+        GasStation.fromJson({
+          'geom': {'lat': 47.2184},
+        }, now: now),
+        isNull,
+      );
+    });
+
+    test('accepte la forme GeoJSON de la géométrie', () {
+      final station = GasStation.fromJson({
+        'geom': {
+          'coordinates': [-1.5536, 47.2184],
+        },
+      }, now: now);
+
+      expect(station?.latitude, 47.2184);
+      expect(station?.longitude, -1.5536);
     });
 
     test('retombe sur des valeurs par défaut quand le JSON est vide', () {
-      final station = GasStation.fromJson({}, now: now);
+      final station = GasStation.fromJson(located({}), now: now)!;
 
       expect(station.address, 'Adresse inconnue');
       expect(station.city, 'Ville inconnue');
@@ -38,19 +103,22 @@ void main() {
     });
 
     test('construit un identifiant de repli sans champ id', () {
-      final station = GasStation.fromJson({
-        'adresse': '1 rue de la Paix',
-        'ville': 'Nantes',
-      }, now: now);
+      final station = GasStation.fromJson(
+        located({'adresse': '1 rue de la Paix', 'ville': 'Nantes'}),
+        now: now,
+      )!;
 
       expect(station.id, '1 rue de la Paix-Nantes');
     });
 
     test('détecte un automate 24h/24', () {
-      final station = GasStation.fromJson({
-        'horaires_automate_24_24': 'Oui',
-        'horaires_jour': 'Mercredi 07.30-20.00',
-      }, now: now);
+      final station = GasStation.fromJson(
+        located({
+          'horaires_automate_24_24': 'Oui',
+          'horaires_jour': 'Mercredi 07.30-20.00',
+        }),
+        now: now,
+      )!;
 
       expect(station.isOpen24h, isTrue);
       expect(station.closingTime, isNull);
@@ -58,18 +126,20 @@ void main() {
     });
 
     test('formate l\'heure de fermeture du jour courant', () {
-      final station = GasStation.fromJson({
-        'horaires_jour': 'Mardi 07.00-19.00, Mercredi 07.30-20.30',
-      }, now: now);
+      final station = GasStation.fromJson(
+        located({'horaires_jour': 'Mardi 07.00-19.00, Mercredi 07.30-20.30'}),
+        now: now,
+      )!;
 
       expect(station.closingTime, '20h30');
       expect(station.isClosed, isFalse);
     });
 
     test('marque la station fermée quand l\'heure est passée', () {
-      final station = GasStation.fromJson({
-        'horaires_jour': 'Mercredi 07.30-12.00',
-      }, now: now);
+      final station = GasStation.fromJson(
+        located({'horaires_jour': 'Mercredi 07.30-12.00'}),
+        now: now,
+      )!;
 
       expect(station.isClosed, isTrue);
       expect(station.closingTime, isNull);
@@ -77,13 +147,17 @@ void main() {
 
     test('ignore un horaire illisible ou absent du jour', () {
       expect(
-        GasStation.fromJson({'horaires_jour': 'n/a'}, now: now).closingTime,
+        GasStation.fromJson(
+          located({'horaires_jour': 'n/a'}),
+          now: now,
+        )!.closingTime,
         isNull,
       );
       expect(
-        GasStation.fromJson({
-          'horaires_jour': 'Lundi 07.30-20.00',
-        }, now: now).closingTime,
+        GasStation.fromJson(
+          located({'horaires_jour': 'Lundi 07.30-20.00'}),
+          now: now,
+        )!.closingTime,
         isNull,
       );
     });

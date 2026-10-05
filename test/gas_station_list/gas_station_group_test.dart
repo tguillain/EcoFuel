@@ -121,27 +121,6 @@ void main() {
       expect(groups, hasLength(2));
     });
 
-    test('ne regroupe pas faute de coordonnées', () {
-      final groups = groupsOf([
-        buildGasStation(
-          id: 'a',
-          price: 2.0,
-          distanceInKm: 1,
-          brand: 'Avia',
-          city: 'Nantes',
-        ),
-        buildGasStation(
-          id: 'b',
-          price: 2.0,
-          distanceInKm: 1,
-          brand: 'Avia',
-          city: 'Nantes',
-        ),
-      ]);
-
-      expect(groups, hasLength(2));
-    });
-
     test('conserve l\'ordre de tri reçu', () {
       final groups = groupsOf([
         buildGasStation(
@@ -157,10 +136,7 @@ void main() {
         leclercRueDuPerray(),
       ]);
 
-      expect(groups.map((g) => g.representative.id), [
-        'moinsCher',
-        '44300017',
-      ]);
+      expect(groups.map((g) => g.representative.id), ['moinsCher', '44300017']);
     });
   });
 }

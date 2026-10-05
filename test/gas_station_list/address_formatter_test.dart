@@ -32,7 +32,10 @@ void main() {
     });
 
     test('garde les numéros et codes inchangés', () {
-      expect(AddressFormatter.format('29 RUE DE LA BLORDIÈRE'), contains('29 '));
+      expect(
+        AddressFormatter.format('29 RUE DE LA BLORDIÈRE'),
+        contains('29 '),
+      );
       expect(
         AddressFormatter.format('29 RUE DE LA BLORDIÈRE'),
         '29 rue de la Blordière',

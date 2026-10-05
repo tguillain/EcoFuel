@@ -1,4 +1,5 @@
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
+import 'package:ecofuel/gas_station_list/widget/search_radius_button.dart';
 import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,6 +12,8 @@ class GasStationListHeader extends StatelessWidget {
     required this.selectedRadius,
     required this.onRadiusChanged,
     required this.title,
+    this.placeName,
+    this.onPlaceTap,
   });
 
   static const double _gap = 3;
@@ -18,6 +21,13 @@ class GasStationListHeader extends StatelessWidget {
   final SearchRadius selectedRadius;
   final ValueChanged<SearchRadius> onRadiusChanged;
   final String title;
+
+  /// Lieu cherché à la place de la position de l'utilisateur ; `null`
+  /// autour de lui.
+  final String? placeName;
+
+  /// Ouvre la recherche de lieu, depuis le surtitre qui le nomme.
+  final VoidCallback? onPlaceTap;
 
   @override
   Widget build(BuildContext context) {
@@ -29,13 +39,11 @@ class GasStationListHeader extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             spacing: _gap,
             children: [
-              Text(
-                'AUTOUR DE MOI · ${selectedRadius.label.toUpperCase()}',
-                style: GoogleFonts.ibmPlexMono(
-                  fontSize: 11,
-                  letterSpacing: 11 * 0.12,
-                  color: AppColors.onSurfaceFaint,
-                ),
+              _PlaceEyebrow(
+                text:
+                    'Autour de ${placeName ?? 'moi'} · ${selectedRadius.label}'
+                        .toUpperCase(),
+                onTap: onPlaceTap,
               ),
               Text(
                 title,
@@ -49,7 +57,7 @@ class GasStationListHeader extends StatelessWidget {
             ],
           ),
         ),
-        _RadiusButton(
+        SearchRadiusButton(
           selectedRadius: selectedRadius,
           onRadiusChanged: onRadiusChanged,
         ),
@@ -58,50 +66,45 @@ class GasStationListHeader extends StatelessWidget {
   }
 }
 
-class _RadiusButton extends StatelessWidget {
-  const _RadiusButton({
-    required this.selectedRadius,
-    required this.onRadiusChanged,
-  });
+/// Surtitre qui nomme le lieu de recherche et, au tap, permet d'en changer.
+class _PlaceEyebrow extends StatelessWidget {
+  const _PlaceEyebrow({required this.text, this.onTap});
 
-  static const double _size = 42;
-  static const double _radius = 12;
-
-  final SearchRadius selectedRadius;
-  final ValueChanged<SearchRadius> onRadiusChanged;
+  final String text;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final TextStyle style = GoogleFonts.ibmPlexMono(
+      fontSize: 11,
+      letterSpacing: 11 * 0.12,
+      color: onTap == null ? AppColors.onSurfaceFaint : AppColors.primary,
+    );
+
+    final Widget label = Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: style,
+    );
+
+    if (onTap == null) {
+      return label;
+    }
+
     return Semantics(
       button: true,
-      label: 'Rayon de recherche : ${selectedRadius.label}',
-      child: PopupMenuButton<SearchRadius>(
-        initialValue: selectedRadius,
-        onSelected: onRadiusChanged,
-        tooltip: 'Changer le rayon de recherche',
-        position: PopupMenuPosition.under,
-        itemBuilder: (context) => [
-          for (final radius in SearchRadius.values)
-            PopupMenuItem<SearchRadius>(
-              value: radius,
-              child: Text(radius.label),
-            ),
-        ],
-        // Le bouton dessine lui-même son fond : le rembourrage par défaut du
-        // PopupMenuButton déborderait du carré de 42 px.
-        padding: EdgeInsets.zero,
-        child: Container(
-          width: _size,
-          height: _size,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceMuted,
-            borderRadius: BorderRadius.circular(_radius),
-          ),
-          child: const Icon(
-            Icons.my_location_rounded,
-            size: 15,
-            color: AppColors.onSurface,
-          ),
+      label: 'Changer le lieu de recherche',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: 4,
+          children: [
+            Flexible(child: label),
+            Icon(Icons.search, size: 13, color: style.color),
+          ],
         ),
       ),
     );

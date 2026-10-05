@@ -7,19 +7,36 @@ class GasStation {
     required this.city,
     required this.pricesByFuel,
     required this.distanceInKm,
+    required this.latitude,
+    required this.longitude,
     required this.isOpen24h,
     required this.closingTime,
     required this.isClosed,
     this.brand,
-    this.latitude,
-    this.longitude,
+    this.postalCode,
+    this.priceUpdatedAtByFuel = const {},
+    this.services = const [],
   });
 
   final String id;
   final String address;
   final String city;
+  final String? postalCode;
   final Map<FuelType, double?> pricesByFuel;
+
+  /// Date du dernier relevé de chaque prix, pour dire sur la fiche de la
+  /// station si le prix affiché est frais.
+  final Map<FuelType, DateTime?> priceUpdatedAtByFuel;
+
+  /// Services déclarés par la station, dans les libellés de l'État
+  /// (« Station de gonflage », « Lavage automatique »…).
+  final List<String> services;
   final double distanceInKm;
+
+  /// Position de la station. Requise : la carte, le calcul d'itinéraire et le
+  /// regroupement des points de distribution en dépendent tous.
+  final double latitude;
+  final double longitude;
 
   /// Automate accessible 24h/24 : la station n'a alors pas d'horaire de fermeture.
   final bool isOpen24h;
@@ -34,41 +51,104 @@ class GasStation {
   /// d'une source tierce et peut ne pas être connue.
   final String? brand;
 
-  /// Coordonnées de la station, nécessaires au regroupement des points de
-  /// distribution d'un même site et à l'itinéraire.
-  final double? latitude;
-  final double? longitude;
-
   double? priceFor(FuelType fuel) => pricesByFuel[fuel];
 
+  DateTime? priceUpdatedAtFor(FuelType fuel) => priceUpdatedAtByFuel[fuel];
+
+  /// L'enseigne ne peut être résolue qu'une fois la position connue, donc
+  /// après la construction : ce copieur évite de relire le JSON.
+  GasStation withBrand(String? brand) => GasStation(
+    id: id,
+    address: address,
+    city: city,
+    pricesByFuel: pricesByFuel,
+    distanceInKm: distanceInKm,
+    latitude: latitude,
+    longitude: longitude,
+    isOpen24h: isOpen24h,
+    closingTime: closingTime,
+    isClosed: isClosed,
+    brand: brand,
+    postalCode: postalCode,
+    priceUpdatedAtByFuel: priceUpdatedAtByFuel,
+    services: services,
+  );
+
+  /// `null` quand la géométrie manque : mieux vaut écarter la station que lui
+  /// inventer une position, qui la placerait au large du golfe de Guinée.
+  ///
   /// [now] n'existe que pour rendre l'interprétation des horaires testable ;
   /// en production l'heure courante suffit.
-  factory GasStation.fromJson(
-    Map<String, dynamic> json, {
-    DateTime? now,
-    String? brand,
-  }) {
+  static GasStation? fromJson(Map<String, dynamic> json, {DateTime? now}) {
+    final coordinates = _coordinatesOf(json);
+
+    if (coordinates == null) {
+      return null;
+    }
+
     final address = json['adresse']?.toString() ?? 'Adresse inconnue';
     final city = json['ville']?.toString() ?? 'Ville inconnue';
     final openingHours = _OpeningHours.fromJson(json, now ?? DateTime.now());
-    final geom = json['geom'] as Map<String, dynamic>?;
 
     return GasStation(
       id: json['id']?.toString() ?? '$address-$city',
       address: address,
       city: city,
       distanceInKm: (_toDouble(json['distance_m']) ?? 0) / 1000,
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
       isOpen24h: openingHours.isOpen24h,
       closingTime: openingHours.closingTime,
       isClosed: openingHours.isClosed,
-      brand: brand,
-      latitude: _toDouble(geom?['lat']),
-      longitude: _toDouble(geom?['lon']),
+      postalCode: json['cp']?.toString(),
       pricesByFuel: {
         for (final fuel in FuelType.values)
           fuel: _toDouble(json[fuel.priceJsonKey]),
       },
+      priceUpdatedAtByFuel: {
+        for (final fuel in FuelType.values)
+          fuel: DateTime.tryParse(
+            json[fuel.updatedAtJsonKey]?.toString() ?? '',
+          ),
+      },
+      services: [
+        if (json['services_service'] is List)
+          for (final service in json['services_service'] as List)
+            service.toString(),
+      ],
     );
+  }
+
+  /// L'API expose `geom` sous forme d'objet `{lat, lon}` ; la forme GeoJSON
+  /// `{coordinates: [lon, lat]}` est acceptée au cas où elle réapparaîtrait.
+  static ({double latitude, double longitude})? _coordinatesOf(
+    Map<String, dynamic> json,
+  ) {
+    final geom = json['geom'];
+
+    if (geom is! Map) {
+      return null;
+    }
+
+    final latitude = _toDouble(geom['lat']);
+    final longitude = _toDouble(geom['lon']);
+
+    if (latitude != null && longitude != null) {
+      return (latitude: latitude, longitude: longitude);
+    }
+
+    final coordinates = geom['coordinates'];
+
+    if (coordinates is List && coordinates.length >= 2) {
+      final geoJsonLongitude = _toDouble(coordinates[0]);
+      final geoJsonLatitude = _toDouble(coordinates[1]);
+
+      if (geoJsonLatitude != null && geoJsonLongitude != null) {
+        return (latitude: geoJsonLatitude, longitude: geoJsonLongitude);
+      }
+    }
+
+    return null;
   }
 
   static double? _toDouble(dynamic value) {
@@ -84,8 +164,6 @@ class GasStation {
   }
 }
 
-/// Interprète les champs d'horaires du jeu de données data.economie.gouv.fr,
-/// qui expose `horaires_jour` sous la forme `Lundi 07.30-20.00, Mardi ...`.
 class _OpeningHours {
   const _OpeningHours({
     required this.isOpen24h,
@@ -142,7 +220,9 @@ class _OpeningHours {
 
     return _OpeningHours(
       isOpen24h: false,
-      closingTime: '${closingTime.hour}h${_twoDigits(closingTime.minute)}',
+      closingTime:
+          '${closingTime.hour}h'
+          '${_twoDigits(closingTime.minute)}',
       isClosed: false,
     );
   }
@@ -186,6 +266,7 @@ class _OpeningHours {
     }
 
     final hour = int.tryParse(parts[0]);
+
     final minute = int.tryParse(parts[1]);
 
     if (hour == null || minute == null) {
@@ -201,5 +282,7 @@ class _OpeningHours {
     );
   }
 
-  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+  static String _twoDigits(int value) {
+    return value.toString().padLeft(2, '0');
+  }
 }

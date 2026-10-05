@@ -27,12 +27,21 @@ class GasStationService {
 
   static const int _resultLimit = 100;
 
+  Future<UserCoordinates> currentCoordinates() {
+    return _locator.currentCoordinates();
+  }
+
+  /// [coordinates] permet à la carte de chercher ailleurs qu'à la position de
+  /// l'utilisateur ; sans lui, le GPS fait foi.
   Future<List<GasStation>> fetchNearbyStations({
     required SearchRadius radius,
+    UserCoordinates? coordinates,
   }) async {
-    final coordinates = await _locator.currentCoordinates();
-    final uri = _buildUri(coordinates: coordinates, radius: radius);
+    final center = coordinates ?? await _locator.currentCoordinates();
+    final uri = _buildUri(coordinates: center, radius: radius);
 
+    debugPrint('Position : ${center.latitude} / ${center.longitude}');
+    debugPrint('Rayon : ${radius.inKm} km');
     debugPrint('URL : $uri');
 
     final response = await http.get(uri);
@@ -45,13 +54,18 @@ class GasStationService {
 
     final Map<String, dynamic> body = jsonDecode(response.body);
     final List<dynamic> results = body['results'] ?? [];
-    final brands = await _brandsAround(coordinates, radius);
+    final brands = await _brandsAround(center, radius);
 
-    return results
-        .map(
-          (item) => _toGasStation(item as Map<String, dynamic>, brands: brands),
-        )
+    // `nonNulls` écarte les enregistrements sans géométrie, que le modèle
+    // refuse de construire plutôt que de leur inventer une position.
+    final stations = results
+        .map((item) => _toGasStation(item as Map<String, dynamic>, brands))
+        .nonNulls
         .toList();
+
+    debugPrint('Stations récupérées : ${stations.length}');
+
+    return stations;
   }
 
   /// L'enseigne est un enrichissement : son indisponibilité ne doit jamais
@@ -70,23 +84,23 @@ class GasStationService {
     }
   }
 
-  static GasStation _toGasStation(
-    Map<String, dynamic> item, {
-    required List<BrandedLocation> brands,
-  }) {
-    final geom = item['geom'] as Map<String, dynamic>?;
-    final latitude = geom?['lat'];
-    final longitude = geom?['lon'];
+  static GasStation? _toGasStation(
+    Map<String, dynamic> item,
+    List<BrandedLocation> brands,
+  ) {
+    final station = GasStation.fromJson(item);
 
-    final brand = latitude is num && longitude is num
-        ? BrandMatcher.nearestBrand(
-            brands,
-            latitude: latitude.toDouble(),
-            longitude: longitude.toDouble(),
-          )
-        : null;
+    if (station == null) {
+      return null;
+    }
 
-    return GasStation.fromJson(item, brand: brand);
+    return station.withBrand(
+      BrandMatcher.nearestBrand(
+        brands,
+        latitude: station.latitude,
+        longitude: station.longitude,
+      ),
+    );
   }
 
   Uri _buildUri({
