@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/service/station_brand_directory.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -81,56 +84,57 @@ void main() {
     });
   });
 
-  group('CachingStationBrandDirectory', () {
+  group('AssetStationBrandDirectory', () {
     const center = UserCoordinates(latitude: latitude, longitude: longitude);
 
-    const brands = [
-      BrandedLocation(
-        brand: 'TotalEnergies',
-        latitude: latitude,
-        longitude: longitude,
-      ),
-    ];
+    // Une station dans le rayon, une juste au-delà, une à Paris.
+    final bundle = _FakeAssetBundle('''
+{"source": "OSM", "generatedAt": "2026-10-05", "stations": [
+  [$latitude, $longitude, "TotalEnergies"],
+  [${latitudeShiftedBy(5500)}, $longitude, "Esso"],
+  [48.8566, 2.3522, "Shell"]
+]}
+''');
 
-    Future<List<BrandedLocation>> lookUp(StationBrandDirectory directory) =>
-        directory.brandsAround(center: center, radius: SearchRadius.fiveKm);
+    test('ne garde que les enseignes autour du centre', () async {
+      final brands = await AssetStationBrandDirectory(bundle: bundle)
+          .brandsAround(center: center, radius: SearchRadius.fiveKm);
 
-    test('ressert les dernières enseignes quand la source échoue', () async {
-      final source = _FlakyBrandDirectory([brands, null]);
-      final directory = CachingStationBrandDirectory(source);
-
-      expect(await lookUp(directory), brands);
-      expect(await lookUp(directory), brands);
+      expect(brands.map((brand) => brand.brand), ['TotalEnergies']);
     });
 
-    test('remonte l\'échec tant qu\'aucune enseigne n\'est connue', () async {
-      final directory = CachingStationBrandDirectory(
-        _FlakyBrandDirectory([null]),
+    test('élargit la recherche avec le rayon', () async {
+      final brands = await AssetStationBrandDirectory(bundle: bundle)
+          .brandsAround(center: center, radius: SearchRadius.tenKm);
+
+      expect(brands.map((brand) => brand.brand), ['TotalEnergies', 'Esso']);
+    });
+
+    // L'application livre le relevé : un fichier absent ou vide priverait
+    // en silence toutes les stations de leur nom.
+    test('livre un relevé couvrant la France', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+
+      final brands = await AssetStationBrandDirectory().brandsAround(
+        center: center,
+        radius: SearchRadius.fiveKm,
       );
 
-      expect(lookUp(directory), throwsException);
+      expect(brands.length, greaterThan(20));
     });
   });
 }
 
-/// Rejoue une suite de réponses ; `null` y figure un refus d'Overpass.
-class _FlakyBrandDirectory implements StationBrandDirectory {
-  _FlakyBrandDirectory(this._responses);
+/// Sert un contenu fixe à la place du fichier livré avec l'application.
+class _FakeAssetBundle extends CachingAssetBundle {
+  _FakeAssetBundle(this._content);
 
-  final List<List<BrandedLocation>?> _responses;
-  int _calls = 0;
+  final String _content;
 
   @override
-  Future<List<BrandedLocation>> brandsAround({
-    required UserCoordinates center,
-    required SearchRadius radius,
-  }) async {
-    final response = _responses[_calls++];
+  Future<ByteData> load(String key) async =>
+      ByteData.sublistView(utf8.encode(_content));
 
-    if (response == null) {
-      throw Exception('Erreur Overpass : 504');
-    }
-
-    return response;
-  }
+  @override
+  Future<String> loadString(String key, {bool cache = true}) async => _content;
 }

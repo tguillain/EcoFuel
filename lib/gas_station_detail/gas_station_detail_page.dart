@@ -169,7 +169,7 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
     final services = StationServiceFormatter.labelsFor(_station);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -185,7 +185,7 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
                       icon: const Icon(Icons.chevron_left),
                       label: const Text('Retour'),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
+                        foregroundColor: context.colors.primary,
                         textStyle: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
@@ -204,7 +204,7 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
                           style: GoogleFonts.ibmPlexMono(
                             fontSize: 11,
                             letterSpacing: 11 * 0.14,
-                            color: AppColors.onSurfaceFaint,
+                            color: context.colors.onSurfaceFaint,
                           ),
                         ),
                         HeadlinePrice(
@@ -214,19 +214,19 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
                         ),
                         Text(
                           GasStationCard.titleFor(_station),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 25,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 25 * -0.02,
-                            color: AppColors.onSurface,
+                            color: context.colors.onSurface,
                           ),
                         ),
                         Text(
                           '$_fullAddress\n$_accessLine',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 14,
                             height: 1.45,
-                            color: AppColors.onSurfaceSubtle,
+                            color: context.colors.onSurfaceSubtle,
                           ),
                         ),
                       ],
@@ -238,9 +238,11 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
             SliverFillRemaining(
               hasScrollBody: false,
               child: Container(
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(top: BorderSide(color: AppColors.outline)),
+                decoration: BoxDecoration(
+                  color: context.colors.surface,
+                  border: Border(
+                    top: BorderSide(color: context.colors.outline),
+                  ),
                 ),
                 padding: _gutter.copyWith(top: 20, bottom: 20),
                 child: Column(

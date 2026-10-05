@@ -47,7 +47,7 @@ class GasStationListPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.surface,
+      color: context.colors.surface,
       padding: _padding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

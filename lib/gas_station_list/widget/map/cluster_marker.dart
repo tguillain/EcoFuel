@@ -1,5 +1,6 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/widget/map/station_cluster.dart';
+import 'package:ecofuel/gas_station_list/widget/map/station_marker_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -9,9 +10,11 @@ import 'package:latlong2/latlong.dart';
 Marker buildClusterMarker({
   required StationCluster cluster,
   required FuelType fuel,
+  required Brightness brightness,
   required VoidCallback onTap,
 }) {
   final Color color = cluster.best.color;
+  final Color fill = StationMarkerColor.icon(color, brightness);
   final double? price = cluster.best.station.priceFor(fuel);
 
   return Marker(
@@ -31,7 +34,7 @@ Marker buildClusterMarker({
               height: 46,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: color,
+                color: fill,
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 3),
                 boxShadow: const [

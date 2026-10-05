@@ -97,4 +97,32 @@ void main() {
       expect(StationMarkerColor.atRatio(42), StationMarkerColor.dearest);
     });
   });
+
+  group('StationMarkerColor.icon', () {
+    double lightnessOf(Color color) => HSLColor.fromColor(color).lightness;
+
+    // Les épingles foncées se perdaient sur la carte, surtout en sombre : la
+    // teinte s'éclaircit dans les deux thèmes, davantage en sombre.
+    test('éclaircit la teinte, davantage en mode sombre', () {
+      const base = StationMarkerColor.cheapest;
+
+      final light = StationMarkerColor.icon(base, Brightness.light);
+      final dark = StationMarkerColor.icon(base, Brightness.dark);
+
+      expect(lightnessOf(light), greaterThan(lightnessOf(base)));
+      expect(lightnessOf(dark), greaterThan(lightnessOf(light)));
+    });
+
+    // Monter la luminosité sans mélanger de blanc garde la couleur vive.
+    test('garde la teinte et la saturation', () {
+      const base = StationMarkerColor.dearest;
+      final icon = HSLColor.fromColor(
+        StationMarkerColor.icon(base, Brightness.dark),
+      );
+      final original = HSLColor.fromColor(base);
+
+      expect(icon.hue, closeTo(original.hue, 1));
+      expect(icon.saturation, closeTo(original.saturation, 0.02));
+    });
+  });
 }

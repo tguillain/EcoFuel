@@ -38,7 +38,7 @@ class GasStationMapBackground extends StatelessWidget {
     // remplace tout l'écran par son message, et les suivants gardent la
     // dernière position connue.
     if (coordinates == null) {
-      return const ColoredBox(color: AppColors.surfaceMuted);
+      return ColoredBox(color: context.colors.surfaceMuted);
     }
 
     return GasStationMap(

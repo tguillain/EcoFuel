@@ -140,7 +140,7 @@ class _FavoritesPageState extends State<FavoritesPage> {
     final List<GasStation> stations = _visibleStations;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.colors.background,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -211,24 +211,24 @@ class _FavoritesHint extends StatelessWidget {
       margin: const EdgeInsets.all(4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         spacing: 10,
         children: [
-          const Icon(
+          Icon(
             Icons.star_border_rounded,
             size: 20,
-            color: AppColors.onSurfaceSubtle,
+            color: context.colors.onSurfaceSubtle,
           ),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
-                color: AppColors.onSurfaceSubtle,
+                color: context.colors.onSurfaceSubtle,
               ),
             ),
           ),

@@ -121,8 +121,8 @@ class GasStationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final price = station.priceFor(fuel);
     final foreground = isHighlighted
-        ? AppColors.onPrimary
-        : AppColors.onSurface;
+        ? context.colors.onPrimary
+        : context.colors.onSurface;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: _gap),
@@ -149,7 +149,9 @@ class GasStationCard extends StatelessWidget {
           ],
         ),
         child: Material(
-          color: isHighlighted ? AppColors.primary : AppColors.surface,
+          color: isHighlighted
+              ? context.colors.primary
+              : context.colors.surface,
           borderRadius: BorderRadius.circular(_radius),
           clipBehavior: Clip.antiAlias,
           child: InkWell(
@@ -177,8 +179,10 @@ class GasStationCard extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             color: isHighlighted
-                                ? AppColors.onPrimary.withValues(alpha: .85)
-                                : AppColors.onSurfaceMuted,
+                                ? context.colors.onPrimary.withValues(
+                                    alpha: .85,
+                                  )
+                                : context.colors.onSurfaceMuted,
                           ),
                         ),
                       ],

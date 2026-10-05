@@ -34,7 +34,7 @@ class MapLocationPill extends StatelessWidget {
         boxShadow: const [SearchRadiusButton.floatingShadow],
       ),
       child: Material(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: borderRadius,
         child: InkWell(
           onTap: onTap,
@@ -53,13 +53,13 @@ class MapLocationPill extends StatelessWidget {
                   Container(
                     width: _dotSize,
                     height: _dotSize,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
+                    decoration: BoxDecoration(
+                      color: context.colors.primary,
                       shape: BoxShape.circle,
                     ),
                   )
                 else
-                  const Icon(Icons.place, size: 16, color: AppColors.primary),
+                  Icon(Icons.place, size: 16, color: context.colors.primary),
                 Expanded(
                   child: Text(
                     placeName == null
@@ -67,10 +67,10 @@ class MapLocationPill extends StatelessWidget {
                         : '$placeName · ${radius.label}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
+                      color: context.colors.onSurface,
                     ),
                   ),
                 ),
@@ -87,10 +87,10 @@ class MapLocationPill extends StatelessWidget {
                     ),
                   )
                 else
-                  const Icon(
+                  Icon(
                     Icons.search,
                     size: 18,
-                    color: AppColors.onSurfaceMuted,
+                    color: context.colors.onSurfaceMuted,
                   ),
               ],
             ),

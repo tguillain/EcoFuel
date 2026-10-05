@@ -32,7 +32,7 @@ class SheetSurface extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.background.withValues(alpha: opacity),
+        color: context.colors.background.withValues(alpha: opacity),
         borderRadius: borderRadius,
         boxShadow: [
           BoxShadow(

@@ -12,6 +12,8 @@ void main() {
   Future<void> pumpFilterBar(
     WidgetTester tester, {
     double width = 390,
+    FuelType selectedFuel = FuelType.e10,
+    ThemeData? theme,
     GasStationSortCriterion sortCriterion = GasStationSortCriterion.price,
     ValueChanged<GasStationSortCriterion>? onSortChanged,
     ValueChanged<FuelType>? onFuelChanged,
@@ -24,13 +26,13 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light,
+        theme: theme ?? AppTheme.light,
         home: Scaffold(
           body: Padding(
             padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: GasStationFilterBar(
               sortCriterion: sortCriterion,
-              selectedFuel: FuelType.e10,
+              selectedFuel: selectedFuel,
               onSortChanged: onSortChanged ?? (_) {},
               onFuelChanged: onFuelChanged ?? (_) {},
               brands: const [
@@ -72,9 +74,11 @@ void main() {
     ) async {
       await pumpFilterBar(tester);
 
-      for (final fuel in FuelType.values) {
+      for (final fuel in FuelType.popular) {
         expect(find.text(fuel.label), findsOneWidget);
       }
+
+      expect(find.text('Autres'), findsOneWidget);
 
       // Le prix est l'ordre par défaut : seule la distance se choisit.
       expect(find.text('Distance'), findsOneWidget);
@@ -86,35 +90,52 @@ void main() {
     testWidgets('marque la sélection par une pastille sombre', (tester) async {
       await pumpFilterBar(tester);
 
-      expect(pillColor(tester, 'E10'), AppColors.onSurface);
-      expect(labelColor(tester, 'E10'), AppColors.onPrimary);
+      expect(pillColor(tester, 'E10'), AppColors.light.selected);
+      expect(labelColor(tester, 'E10'), AppColors.light.onSelected);
 
-      expect(labelColor(tester, 'SP95'), AppColors.onSurfaceMuted);
-      expect(labelColor(tester, 'Distance'), AppColors.onSurfaceSubtle);
-      expect(pillColor(tester, 'SP95'), isNot(AppColors.onSurface));
+      expect(labelColor(tester, 'SP98'), AppColors.light.onSurfaceMuted);
+      expect(labelColor(tester, 'Distance'), AppColors.light.onSurfaceSubtle);
+      expect(pillColor(tester, 'SP98'), isNot(AppColors.light.selected));
 
-      expect(pillColor(tester, 'Distance'), AppColors.surfaceMuted);
+      expect(pillColor(tester, 'Distance'), AppColors.light.surfaceMuted);
     });
 
-    testWidgets('étale les carburants sur toute la largeur, à largeur égale', (
+    // En sombre, une pastille sélectionnée s'inverse : fond clair, libellé
+    // foncé. Garder le fond de la couleur du texte la rendrait invisible.
+    testWidgets('inverse la pastille sélectionnée en mode sombre', (
       tester,
     ) async {
-      const width = 390.0;
-      await pumpFilterBar(tester, width: width);
+      await pumpFilterBar(tester, theme: AppTheme.dark);
 
-      final widths = FuelType.values
-          .map((fuel) => pillRect(tester, fuel.label).width)
-          .toSet();
-
-      expect(widths, hasLength(1));
-
-      final first = pillRect(tester, FuelType.values.first.label);
-      final last = pillRect(tester, FuelType.values.last.label);
-
-      // La piste ajoute 3 px de rembourrage à l'intérieur de la marge.
-      expect(first.left, horizontalPadding + 3);
-      expect(last.right, width - horizontalPadding - 3);
+      expect(pillColor(tester, 'E10'), AppColors.dark.selected);
+      expect(labelColor(tester, 'E10'), AppColors.dark.onSelected);
+      expect(labelColor(tester, 'SP98'), AppColors.dark.onSurfaceMuted);
     });
+
+    testWidgets(
+      'étale les cases de carburant sur toute la largeur, à largeur égale',
+      (tester) async {
+        const width = 390.0;
+        await pumpFilterBar(tester, width: width);
+
+        final labels = [
+          for (final fuel in FuelType.popular) fuel.label,
+          'Autres',
+        ];
+        final widths = labels
+            .map((label) => pillRect(tester, label).width)
+            .toSet();
+
+        expect(widths, hasLength(1));
+
+        final first = pillRect(tester, labels.first);
+        final last = pillRect(tester, labels.last);
+
+        // La piste ajoute 3 px de rembourrage à l'intérieur de la marge.
+        expect(first.left, horizontalPadding + 3);
+        expect(last.right, width - horizontalPadding - 3);
+      },
+    );
 
     // La pastille Distance se dimensionne sur son libellé et ouvre la ligne.
     testWidgets('dimensionne la pastille Distance sur son libellé', (
@@ -139,7 +160,7 @@ void main() {
         onSortChanged: (value) => sort = value,
       );
 
-      expect(pillColor(tester, 'Distance'), AppColors.onSurface);
+      expect(pillColor(tester, 'Distance'), AppColors.light.selected);
 
       await tester.tap(find.text('Distance'));
       await tester.pump();
@@ -208,6 +229,40 @@ void main() {
   });
 
   group('GasStationFilterBar · marque', () {
+    // Les carburants moins distribués se rangent derrière la quatrième case,
+    // pour garder à la piste des cases lisibles sur un téléphone.
+    testWidgets('propose les autres carburants dans un menu', (tester) async {
+      FuelType? fuel;
+
+      await pumpFilterBar(tester, onFuelChanged: (value) => fuel = value);
+
+      for (final other in FuelType.others) {
+        expect(find.text(other.label), findsNothing);
+      }
+
+      await tester.tap(find.text('Autres'));
+      await tester.pumpAndSettle();
+
+      for (final other in FuelType.others) {
+        expect(find.text(other.label), findsOneWidget);
+      }
+
+      await tester.tap(find.text('GPLc'));
+      await tester.pumpAndSettle();
+
+      expect(fuel, FuelType.gplc);
+    });
+
+    testWidgets('affiche dans la quatrième case le carburant rare choisi', (
+      tester,
+    ) async {
+      await pumpFilterBar(tester, selectedFuel: FuelType.e85);
+
+      expect(find.text('Autres'), findsNothing);
+      expect(pillColor(tester, 'E85'), AppColors.light.selected);
+      expect(labelColor(tester, 'E85'), AppColors.light.onSelected);
+    });
+
     testWidgets('propose les marques du rayon et remonte le choix', (
       tester,
     ) async {

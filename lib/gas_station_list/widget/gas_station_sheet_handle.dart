@@ -53,7 +53,7 @@ class GasStationSheetHandle extends SliverPersistentHeaderDelegate {
               height: _barHeight,
               decoration: BoxDecoration(
                 // Opaque : sur la carte, la barre doit se détacher des tuiles.
-                color: AppColors.onSurfaceFaint,
+                color: context.colors.onSurfaceFaint,
                 borderRadius: BorderRadius.circular(_barHeight / 2),
               ),
             ),

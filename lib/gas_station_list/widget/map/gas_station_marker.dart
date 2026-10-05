@@ -1,5 +1,6 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
+import 'package:ecofuel/gas_station_list/widget/map/station_marker_color.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -39,7 +40,9 @@ Marker buildGasStationMarker({
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                // Blanc dans les deux thèmes : le vert foncé et le rouge des
+                // prix deviendraient illisibles sur une étiquette sombre.
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: markerColor, width: 2),
                 boxShadow: const [
@@ -60,7 +63,14 @@ Marker buildGasStationMarker({
           // =============================
           // POSITION DE LA STATION
           // =============================
-          Icon(Icons.location_on, size: 39, color: markerColor),
+          Icon(
+            Icons.location_on,
+            size: 39,
+            color: StationMarkerColor.icon(
+              markerColor,
+              Theme.of(context).brightness,
+            ),
+          ),
         ],
       ),
     ),

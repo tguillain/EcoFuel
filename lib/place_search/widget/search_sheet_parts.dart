@@ -16,7 +16,7 @@ class ChosenPlace extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -24,7 +24,7 @@ class ChosenPlace extends StatelessWidget {
         children: [
           Icon(
             place == null ? Icons.my_location : Icons.place,
-            color: AppColors.primary,
+            color: context.colors.primary,
           ),
           Expanded(
             child: Column(
@@ -36,9 +36,9 @@ class ChosenPlace extends StatelessWidget {
                 ),
                 Text(
                   place?.context ?? 'Ma position actuelle',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.onSurfaceMuted,
+                    color: context.colors.onSurfaceMuted,
                   ),
                 ),
               ],
@@ -67,7 +67,7 @@ class SearchSubmitBar extends StatelessWidget {
         child: FilledButton(
           onPressed: onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: context.colors.primary,
             minimumSize: const Size.fromHeight(52),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),

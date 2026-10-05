@@ -20,12 +20,12 @@ class FavoriteStarButton extends StatelessWidget {
   /// Vrai sur un fond bleu.
   final bool onPrimary;
 
-  Color get _color {
+  Color _colorIn(BuildContext context) {
     if (onPrimary) {
-      return AppColors.onPrimary;
+      return context.colors.onPrimary;
     }
 
-    return isFavorite ? AppColors.favorite : AppColors.onSurfaceFaint;
+    return isFavorite ? context.colors.favorite : context.colors.onSurfaceFaint;
   }
 
   @override
@@ -34,8 +34,8 @@ class FavoriteStarButton extends StatelessWidget {
       onPressed: onPressed,
       tooltip: isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris',
       isSelected: isFavorite,
-      icon: Icon(Icons.star_border_rounded, color: _color),
-      selectedIcon: Icon(Icons.star_rounded, color: _color),
+      icon: Icon(Icons.star_border_rounded, color: _colorIn(context)),
+      selectedIcon: Icon(Icons.star_rounded, color: _colorIn(context)),
       iconSize: 24,
       // Cible de 44 px de large, mais à peine plus haute que l'étoile : la
       // carte ne doit pas grandir pour elle.

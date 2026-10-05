@@ -21,7 +21,7 @@ class FavoritesHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.surface,
+      color: context.colors.surface,
       padding: const EdgeInsets.fromLTRB(8, 4, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,7 +32,7 @@ class FavoritesHeader extends StatelessWidget {
             icon: const Icon(Icons.chevron_left),
             label: const Text('Carte'),
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
+              foregroundColor: context.colors.primary,
               textStyle: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
@@ -60,25 +60,25 @@ class FavoritesHeader extends StatelessWidget {
                             style: GoogleFonts.ibmPlexMono(
                               fontSize: 11,
                               letterSpacing: 11 * 0.12,
-                              color: AppColors.onSurfaceFaint,
+                              color: context.colors.onSurfaceFaint,
                             ),
                           ),
-                          const Text(
+                          Text(
                             'Mes favoris',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 28 * -0.025,
-                              color: AppColors.onSurface,
+                              color: context.colors.onSurface,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.star_rounded,
                       size: 30,
-                      color: AppColors.favorite,
+                      color: context.colors.favorite,
                     ),
                   ],
                 ),

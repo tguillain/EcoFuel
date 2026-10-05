@@ -88,7 +88,7 @@ class _SortPills extends StatelessWidget {
           isSelected: selected == GasStationSortCriterion.distance,
           radius: _pillRadius,
           padding: _pillPadding,
-          foreground: AppColors.onSurfaceSubtle,
+          foreground: context.colors.onSurfaceSubtle,
           onTap: () => onSelected(selected.withDistanceToggled),
         ),
         trailing,
@@ -108,13 +108,15 @@ class _BrandPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isSelected = selectedBrand != null;
     final Color foreground = isSelected
-        ? AppColors.onPrimary
-        : AppColors.onSurfaceSubtle;
+        ? context.colors.onSelected
+        : context.colors.onSurfaceSubtle;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
       decoration: BoxDecoration(
-        color: isSelected ? AppColors.onSurface : AppColors.surfaceMuted,
+        color: isSelected
+            ? context.colors.selected
+            : context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(

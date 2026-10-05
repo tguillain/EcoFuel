@@ -186,8 +186,8 @@ class _Chip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color foreground = isSelected
-        ? AppColors.onPrimary
-        : AppColors.onSurfaceSubtle;
+        ? context.colors.onSelected
+        : context.colors.onSurfaceSubtle;
     final BorderRadius borderRadius = BorderRadius.circular(999);
 
     final Widget content = Padding(
@@ -215,7 +215,7 @@ class _Chip extends StatelessWidget {
           boxShadow: isSelected ? null : const [_shadow],
         ),
         child: Material(
-          color: isSelected ? AppColors.onSurface : AppColors.surface,
+          color: isSelected ? context.colors.selected : context.colors.surface,
           borderRadius: borderRadius,
           child: onTap == null
               ? content

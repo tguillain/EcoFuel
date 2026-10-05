@@ -172,8 +172,8 @@ void main() {
           .widget<Material>(find.byType(Material).last)
           .color;
 
-      expect(highlighted, AppColors.primary);
-      expect(standard, AppColors.surface);
+      expect(highlighted, AppColors.light.primary);
+      expect(standard, AppColors.light.surface);
     });
 
     // Le prix occupe la largeur restante après l'adresse : il doit tenir sur

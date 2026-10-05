@@ -38,17 +38,27 @@ class BrandMenuButton extends StatelessWidget {
         position: PopupMenuPosition.under,
         padding: EdgeInsets.zero,
         itemBuilder: (context) => [
-          _item(BrandFilter.allBrands, _total, selectedBrand == null),
+          _item(context, BrandFilter.allBrands, _total, selectedBrand == null),
           const PopupMenuDivider(),
           for (final entry in brands)
-            _item(entry.brand, entry.count, entry.brand == selectedBrand),
+            _item(
+              context,
+              entry.brand,
+              entry.count,
+              entry.brand == selectedBrand,
+            ),
         ],
         child: child,
       ),
     );
   }
 
-  PopupMenuItem<String> _item(String brand, int count, bool isSelected) {
+  PopupMenuItem<String> _item(
+    BuildContext context,
+    String brand,
+    int count,
+    bool isSelected,
+  ) {
     return PopupMenuItem<String>(
       value: brand,
       child: Row(
@@ -57,7 +67,7 @@ class BrandMenuButton extends StatelessWidget {
           SizedBox(
             width: 20,
             child: isSelected
-                ? const Icon(Icons.check, size: 18, color: AppColors.primary)
+                ? Icon(Icons.check, size: 18, color: context.colors.primary)
                 : null,
           ),
           Expanded(
@@ -72,7 +82,7 @@ class BrandMenuButton extends StatelessWidget {
             '$count',
             style: GoogleFonts.ibmPlexMono(
               fontSize: 12,
-              color: AppColors.onSurfaceMuted,
+              color: context.colors.onSurfaceMuted,
             ),
           ),
         ],

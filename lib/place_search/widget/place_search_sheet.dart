@@ -22,7 +22,7 @@ Future<StationSearch?> showPlaceSearchSheet(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: AppColors.surface,
+    backgroundColor: context.colors.surface,
     builder: (_) => PlaceSearchSheet(initial: initial, service: service),
   );
 }
@@ -189,7 +189,7 @@ class _PlaceSearchSheetState extends State<PlaceSearchSheet> {
               )
             : null,
         filled: true,
-        fillColor: AppColors.surfaceMuted,
+        fillColor: context.colors.surfaceMuted,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

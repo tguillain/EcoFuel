@@ -47,11 +47,11 @@ class GasStationListHeader extends StatelessWidget {
               ),
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 22 * -0.025,
-                  color: AppColors.onSurface,
+                  color: context.colors.onSurface,
                 ),
               ),
             ],
@@ -78,7 +78,9 @@ class _PlaceEyebrow extends StatelessWidget {
     final TextStyle style = GoogleFonts.ibmPlexMono(
       fontSize: 11,
       letterSpacing: 11 * 0.12,
-      color: onTap == null ? AppColors.onSurfaceFaint : AppColors.primary,
+      color: onTap == null
+          ? context.colors.onSurfaceFaint
+          : context.colors.primary,
     );
 
     final Widget label = Text(
