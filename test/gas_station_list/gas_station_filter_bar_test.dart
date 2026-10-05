@@ -12,10 +12,13 @@ void main() {
   Future<void> pumpFilterBar(
     WidgetTester tester, {
     double width = 390,
-    ThemeData? theme,
     FuelType selectedFuel = FuelType.e10,
+    ThemeData? theme,
+    GasStationSortCriterion sortCriterion = GasStationSortCriterion.price,
     ValueChanged<GasStationSortCriterion>? onSortChanged,
     ValueChanged<FuelType>? onFuelChanged,
+    ValueChanged<String?>? onBrandChanged,
+    String? selectedBrand,
   }) async {
     tester.view.physicalSize = Size(width, 844);
     tester.view.devicePixelRatio = 1;
@@ -28,10 +31,16 @@ void main() {
           body: Padding(
             padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: GasStationFilterBar(
-              sortCriterion: GasStationSortCriterion.price,
+              sortCriterion: sortCriterion,
               selectedFuel: selectedFuel,
               onSortChanged: onSortChanged ?? (_) {},
               onFuelChanged: onFuelChanged ?? (_) {},
+              brands: const [
+                (brand: 'TotalEnergies', count: 6),
+                (brand: 'Avia', count: 2),
+              ],
+              selectedBrand: selectedBrand,
+              onBrandChanged: onBrandChanged ?? (_) {},
             ),
           ),
         ),
@@ -71,9 +80,9 @@ void main() {
 
       expect(find.text('Autres'), findsOneWidget);
 
-      for (final criterion in GasStationSortCriterion.values) {
-        expect(find.text(criterion.label), findsOneWidget);
-      }
+      // Le prix est l'ordre par défaut : seule la distance se choisit.
+      expect(find.text('Distance'), findsOneWidget);
+      expect(find.text('Prix croissant'), findsNothing);
     });
 
     // Le carburant sélectionné se lit à la couleur seule : c'est le seul
@@ -88,7 +97,6 @@ void main() {
       expect(labelColor(tester, 'Distance'), AppColors.light.onSurfaceSubtle);
       expect(pillColor(tester, 'SP98'), isNot(AppColors.light.selected));
 
-      expect(pillColor(tester, 'Prix croissant'), AppColors.light.selected);
       expect(pillColor(tester, 'Distance'), AppColors.light.surfaceMuted);
     });
 
@@ -129,20 +137,35 @@ void main() {
       },
     );
 
-    // Les critères de tri se dimensionnent sur leur libellé : « Prix
-    // croissant » est bien plus long que « Distance », les étaler à largeur
-    // égale gaspillerait la ligne.
-    testWidgets('dimensionne les pastilles de tri sur leur libellé', (
+    // La pastille Distance se dimensionne sur son libellé et ouvre la ligne.
+    testWidgets('dimensionne la pastille Distance sur son libellé', (
       tester,
     ) async {
       await pumpFilterBar(tester);
 
-      final price = pillRect(tester, 'Prix croissant');
       final distance = pillRect(tester, 'Distance');
 
-      expect(price.width, greaterThan(distance.width));
-      expect(price.left, horizontalPadding);
+      expect(distance.left, horizontalPadding);
       expect(distance.right, lessThan(390 - horizontalPadding));
+    });
+
+    testWidgets('revient au prix quand on désactive la distance', (
+      tester,
+    ) async {
+      GasStationSortCriterion? sort;
+
+      await pumpFilterBar(
+        tester,
+        sortCriterion: GasStationSortCriterion.distance,
+        onSortChanged: (value) => sort = value,
+      );
+
+      expect(pillColor(tester, 'Distance'), AppColors.light.selected);
+
+      await tester.tap(find.text('Distance'));
+      await tester.pump();
+
+      expect(sort, GasStationSortCriterion.price);
     });
 
     // Le FittedBox réduit le libellé plutôt que de le couper : « Gazole » est
@@ -184,6 +207,28 @@ void main() {
       );
     });
 
+    testWidgets('remonte les changements de carburant et de critère', (
+      tester,
+    ) async {
+      GasStationSortCriterion? sort;
+      FuelType? fuel;
+
+      await pumpFilterBar(
+        tester,
+        onSortChanged: (value) => sort = value,
+        onFuelChanged: (value) => fuel = value,
+      );
+
+      await tester.tap(find.text('Distance'));
+      await tester.tap(find.text('SP98'));
+      await tester.pump();
+
+      expect(sort, GasStationSortCriterion.distance);
+      expect(fuel, FuelType.sp98);
+    });
+  });
+
+  group('GasStationFilterBar · marque', () {
     // Les carburants moins distribués se rangent derrière la quatrième case,
     // pour garder à la piste des cases lisibles sur un téléphone.
     testWidgets('propose les autres carburants dans un menu', (tester) async {
@@ -218,24 +263,41 @@ void main() {
       expect(labelColor(tester, 'E85'), AppColors.light.onSelected);
     });
 
-    testWidgets('remonte les changements de carburant et de critère', (
+    testWidgets('propose les marques du rayon et remonte le choix', (
       tester,
     ) async {
-      GasStationSortCriterion? sort;
-      FuelType? fuel;
+      String? chosen = 'pas encore';
+
+      await pumpFilterBar(tester, onBrandChanged: (brand) => chosen = brand);
+
+      await tester.tap(find.text('Toutes les marques'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('TotalEnergies'), findsOneWidget);
+      expect(find.text('6'), findsOneWidget);
+      expect(find.text('8'), findsOneWidget, reason: 'total des stations');
+
+      await tester.tap(find.text('Avia'));
+      await tester.pumpAndSettle();
+
+      expect(chosen, 'Avia');
+    });
+
+    testWidgets('revient à toutes les marques', (tester) async {
+      String? chosen = 'pas encore';
 
       await pumpFilterBar(
         tester,
-        onSortChanged: (value) => sort = value,
-        onFuelChanged: (value) => fuel = value,
+        selectedBrand: 'Avia',
+        onBrandChanged: (brand) => chosen = brand,
       );
 
-      await tester.tap(find.text('Distance'));
-      await tester.tap(find.text('SP98'));
-      await tester.pump();
+      await tester.tap(find.text('Avia'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Toutes les marques'));
+      await tester.pumpAndSettle();
 
-      expect(sort, GasStationSortCriterion.distance);
-      expect(fuel, FuelType.sp98);
+      expect(chosen, isNull);
     });
   });
 }

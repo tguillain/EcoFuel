@@ -1,5 +1,6 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
+import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station_group.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card_list.dart';
 import 'package:ecofuel/gas_station_list/widget/message_state.dart';
@@ -21,6 +22,8 @@ class StationSheetContent extends StatelessWidget {
     required this.onRetry,
     required this.onStationTap,
     this.updatedAt,
+    this.favoriteIds = const {},
+    this.onFavoriteTap,
   });
 
   static const double _loadingHeight = 120;
@@ -33,6 +36,8 @@ class StationSheetContent extends StatelessWidget {
   final VoidCallback onRetry;
   final GasStationTapCallback onStationTap;
   final DateTime? updatedAt;
+  final Set<String> favoriteIds;
+  final ValueChanged<GasStation>? onFavoriteTap;
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +72,8 @@ class StationSheetContent extends StatelessWidget {
       peekKey: peekKey,
       updatedAt: updatedAt,
       onStationTap: onStationTap,
+      favoriteIds: favoriteIds,
+      onFavoriteTap: onFavoriteTap,
     );
   }
 }

@@ -1,3 +1,4 @@
+import 'package:ecofuel/favorites/widget/favorite_star_button.dart';
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/formatter/address_formatter.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
@@ -14,6 +15,8 @@ class GasStationCard extends StatelessWidget {
     required this.showAddress,
     required this.pointCount,
     this.onTap,
+    this.isFavorite = false,
+    this.onFavoriteTap,
   });
 
   factory GasStationCard.standard(
@@ -23,6 +26,8 @@ class GasStationCard extends StatelessWidget {
     VoidCallback? onTap,
     bool showAddress = false,
     int pointCount = 1,
+    bool isFavorite = false,
+    VoidCallback? onFavoriteTap,
   }) => GasStationCard._(
     key: key,
     station: station,
@@ -31,6 +36,8 @@ class GasStationCard extends StatelessWidget {
     onTap: onTap,
     showAddress: showAddress,
     pointCount: pointCount,
+    isFavorite: isFavorite,
+    onFavoriteTap: onFavoriteTap,
   );
 
   factory GasStationCard.highlighted(
@@ -40,6 +47,8 @@ class GasStationCard extends StatelessWidget {
     VoidCallback? onTap,
     bool showAddress = false,
     int pointCount = 1,
+    bool isFavorite = false,
+    VoidCallback? onFavoriteTap,
   }) => GasStationCard._(
     key: key,
     station: station,
@@ -48,6 +57,8 @@ class GasStationCard extends StatelessWidget {
     onTap: onTap,
     showAddress: showAddress,
     pointCount: pointCount,
+    isFavorite: isFavorite,
+    onFavoriteTap: onFavoriteTap,
   );
 
   /// Ce que la carte affichera en titre. Exposé pour que la liste puisse
@@ -73,6 +84,11 @@ class GasStationCard extends StatelessWidget {
 
   /// Nombre de points de distribution regroupés sur cette carte.
   final int pointCount;
+
+  final bool isFavorite;
+
+  /// Bascule la station dans les favoris ; sans lui, pas d'étoile.
+  final VoidCallback? onFavoriteTap;
 
   /// L'enseigne fait un bien meilleur titre que l'adresse. À défaut, l'adresse
   /// est remise en forme : celle de l'API arrive en casse irrégulière.
@@ -173,30 +189,47 @@ class GasStationCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 14),
-                  Text.rich(
-                    TextSpan(
-                      children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (onFavoriteTap != null)
+                        // Recalée sur le bord du prix : la cible dépasse
+                        // l'étoile dessinée.
+                        Transform.translate(
+                          offset: const Offset(10, -6),
+                          child: FavoriteStarButton(
+                            isFavorite: isFavorite,
+                            onPrimary: isHighlighted,
+                            onPressed: onFavoriteTap!,
+                          ),
+                        ),
+                      Text.rich(
                         TextSpan(
-                          text: price != null
-                              ? _priceFormat.format(price)
-                              : '—',
-                          style: const TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 26 * -0.03,
-                          ),
+                          children: [
+                            TextSpan(
+                              text: price != null
+                                  ? _priceFormat.format(price)
+                                  : '—',
+                              style: const TextStyle(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 26 * -0.03,
+                              ),
+                            ),
+                            const TextSpan(
+                              text: ' €/L',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
-                        const TextSpan(
-                          text: ' €/L',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w500,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                    maxLines: 1,
-                    style: TextStyle(color: foreground),
+                        maxLines: 1,
+                        style: TextStyle(color: foreground),
+                      ),
+                    ],
                   ),
                 ],
               ),

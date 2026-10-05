@@ -26,6 +26,8 @@ class GasStationCardList extends StatelessWidget {
     required this.peekKey,
     this.peekCount = 2,
     this.updatedAt,
+    this.favoriteIds = const {},
+    this.onFavoriteTap,
   });
 
   /// Marges de la liste. Le haut est réduit : la poignée de la feuille, juste
@@ -46,6 +48,12 @@ class GasStationCardList extends StatelessWidget {
   final int peekCount;
 
   final DateTime? updatedAt;
+
+  /// Stations en favori, dont l'étoile est pleine.
+  final Set<String> favoriteIds;
+
+  /// Bascule une station dans les favoris ; sans lui, pas d'étoile.
+  final ValueChanged<GasStation>? onFavoriteTap;
 
   /// Deux sites de la même enseigne dans la même commune n'affichent aucune
   /// différence : mêmes titre, ville et horaires, et des distances qui
@@ -78,6 +86,12 @@ class GasStationCardList extends StatelessWidget {
       )
       .id;
 
+  VoidCallback? _favoriteTapFor(GasStation station) {
+    final ValueChanged<GasStation>? onFavoriteTap = this.onFavoriteTap;
+
+    return onFavoriteTap == null ? null : () => onFavoriteTap(station);
+  }
+
   @override
   Widget build(BuildContext context) {
     final cheapestId = _cheapestId;
@@ -99,6 +113,8 @@ class GasStationCardList extends StatelessWidget {
           onTap: onTap,
           showAddress: showAddress,
           pointCount: group.pointCount,
+          isFavorite: favoriteIds.contains(station.id),
+          onFavoriteTap: _favoriteTapFor(station),
         );
       }
 
@@ -109,6 +125,8 @@ class GasStationCardList extends StatelessWidget {
         onTap: onTap,
         showAddress: showAddress,
         pointCount: group.pointCount,
+        isFavorite: favoriteIds.contains(station.id),
+        onFavoriteTap: _favoriteTapFor(station),
       );
     }
 

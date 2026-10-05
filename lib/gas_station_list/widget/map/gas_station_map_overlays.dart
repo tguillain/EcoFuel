@@ -1,42 +1,47 @@
-import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
-import 'package:ecofuel/gas_station_list/widget/map/map_price_legend.dart';
 import 'package:flutter/material.dart';
 
-/// Commandes posées sur la carte : légende et bouton de recentrage.
+/// Commandes posées sur la carte : les favoris en bas à gauche, le recentrage
+/// en miroir en bas à droite.
 ///
 /// Seuls ses enfants captent les gestes : le reste de la surface laisse passer
 /// glissements et zooms jusqu'à la carte.
 class GasStationMapOverlays extends StatelessWidget {
   const GasStationMapOverlays({
     super.key,
-    required this.fuel,
-    required this.stationLimit,
     required this.onRecenter,
+    this.onFavoritesTap,
   });
 
-  final FuelType fuel;
-  final int stationLimit;
   final VoidCallback onRecenter;
+
+  /// Ouvre l'écran des favoris ; sans lui, pas de bouton.
+  final VoidCallback? onFavoritesTap;
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
         // =============================
-        // LÉGENDE DES COULEURS
+        // FAVORIS
         // =============================
-        Positioned(
-          left: 12,
-          top: 12,
-          child: MapPriceLegend(fuel: fuel, count: stationLimit),
-        ),
+        if (onFavoritesTap != null)
+          Positioned(
+            left: 16,
+            bottom: 0,
+            child: FloatingActionButton.small(
+              heroTag: 'mapFavoritesButton',
+              tooltip: 'Mes favoris',
+              onPressed: onFavoritesTap,
+              child: const Icon(Icons.star_rounded),
+            ),
+          ),
 
         // =============================
         // RECENTRER
         // =============================
         Positioned(
           right: 16,
-          bottom: 22,
+          bottom: 0,
           child: FloatingActionButton.small(
             heroTag: 'mapCenterButton',
             tooltip: 'Recentrer',

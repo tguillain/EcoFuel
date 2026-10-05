@@ -1,6 +1,8 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
+import 'package:ecofuel/gas_station_list/model/brand_filter.dart';
+import 'package:ecofuel/gas_station_list/widget/brand_menu_button.dart';
 import 'package:ecofuel/gas_station_list/widget/map/map_location_pill.dart';
 import 'package:ecofuel/gas_station_list/widget/search_radius_button.dart';
 import 'package:ecofuel/theme/app_colors.dart';
@@ -12,7 +14,8 @@ import 'package:flutter/material.dart';
 ///
 /// Les filtres sont ceux de la liste, resserrés : la piste segmentée des
 /// carburants prendrait toute une rangée, elle devient une pastille qui
-/// n'affiche que le carburant choisi et ouvre les autres au tap.
+/// n'affiche que le carburant choisi et ouvre les autres au tap. La marque
+/// suit le même modèle.
 class GasStationMapHeader extends StatelessWidget {
   const GasStationMapHeader({
     super.key,
@@ -23,6 +26,9 @@ class GasStationMapHeader extends StatelessWidget {
     required this.sortCriterion,
     required this.onSortChanged,
     required this.onPlaceTap,
+    required this.brands,
+    required this.onBrandChanged,
+    this.selectedBrand,
     this.placeName,
     this.onPlaceCleared,
   });
@@ -37,6 +43,11 @@ class GasStationMapHeader extends StatelessWidget {
   final ValueChanged<FuelType> onFuelChanged;
   final GasStationSortCriterion sortCriterion;
   final ValueChanged<GasStationSortCriterion> onSortChanged;
+
+  /// Enseignes du rayon proposées au filtre ; `selectedBrand` nul : toutes.
+  final List<BrandCount> brands;
+  final String? selectedBrand;
+  final ValueChanged<String?> onBrandChanged;
 
   /// Lieu cherché ; `null` autour de l'utilisateur.
   final String? placeName;
@@ -82,12 +93,29 @@ class GasStationMapHeader extends StatelessWidget {
               spacing: _chipGap,
               children: [
                 _FuelChip(selected: selectedFuel, onSelected: onFuelChanged),
-                for (final criterion in GasStationSortCriterion.values)
-                  _Chip(
-                    isSelected: criterion == sortCriterion,
-                    onTap: () => onSortChanged(criterion),
-                    child: Text(criterion.label),
+                BrandMenuButton(
+                  brands: brands,
+                  selectedBrand: selectedBrand,
+                  onBrandChanged: onBrandChanged,
+                  // Noire dès qu'une marque filtre la carte, pour ne pas
+                  // l'oublier.
+                  child: _Chip(
+                    isSelected: selectedBrand != null,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 2,
+                      children: [
+                        Text(selectedBrand ?? BrandFilter.allBrands),
+                        const Icon(Icons.expand_more, size: 16),
+                      ],
+                    ),
                   ),
+                ),
+                _Chip(
+                  isSelected: sortCriterion == GasStationSortCriterion.distance,
+                  onTap: () => onSortChanged(sortCriterion.withDistanceToggled),
+                  child: Text(GasStationSortCriterion.distance.label),
+                ),
               ],
             ),
           ),

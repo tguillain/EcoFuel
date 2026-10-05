@@ -69,6 +69,47 @@ class GasStationService {
     return stations;
   }
 
+  /// Les stations [ids], où qu'elles soient : l'écran des favoris montre leur
+  /// prix même hors du rayon de recherche. Les distances partent de [from].
+  Future<List<GasStation>> fetchStationsByIds(
+    Set<String> ids, {
+    required UserCoordinates from,
+  }) async {
+    // Les identifiants de l'État sont numériques : n'en laisser passer
+    // aucun autre empêche de détourner la requête.
+    final List<String> numericIds = ids
+        .where((id) => RegExp(r'^\d+$').hasMatch(id))
+        .toList();
+
+    if (numericIds.isEmpty) {
+      return const [];
+    }
+
+    final point = "geom'POINT(${from.longitude} ${from.latitude})'";
+    final uri = Uri.parse(_baseUrl).replace(
+      queryParameters: {
+        'where': 'id in (${numericIds.join(',')})',
+        'select': '*, distance(geom,$point) as distance_m',
+        'limit': '$_resultLimit',
+      },
+    );
+
+    final response = await http.get(uri);
+
+    if (response.statusCode != 200) {
+      throw Exception('Erreur API : ${response.statusCode}');
+    }
+
+    final Map<String, dynamic> body = jsonDecode(response.body);
+    final List<dynamic> results = body['results'] ?? [];
+    final brands = await _brandsAround(from, SearchRadius.fiftyKm);
+
+    return results
+        .map((item) => _toGasStation(item as Map<String, dynamic>, brands))
+        .nonNulls
+        .toList();
+  }
+
   /// L'enseigne est un enrichissement : son indisponibilité ne doit jamais
   /// priver l'utilisateur des prix, les stations retombent alors sur leur
   /// adresse.

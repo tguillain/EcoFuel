@@ -23,6 +23,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.selected,
     required this.onSelected,
     required this.shadow,
+    required this.favorite,
   });
 
   static const AppColors light = AppColors(
@@ -40,6 +41,7 @@ class AppColors extends ThemeExtension<AppColors> {
     selected: Color.fromRGBO(14, 18, 17, 1),
     onSelected: Color.fromRGBO(255, 255, 255, 1),
     shadow: Color.fromRGBO(14, 18, 17, 1),
+    favorite: Color.fromRGBO(199, 119, 0, 1),
   );
 
   /// Les surfaces s'éclaircissent à mesure qu'elles montent, comme sur
@@ -60,6 +62,7 @@ class AppColors extends ThemeExtension<AppColors> {
     selected: Color.fromRGBO(244, 243, 239, 1),
     onSelected: Color.fromRGBO(14, 18, 17, 1),
     shadow: Color.fromRGBO(0, 0, 0, 1),
+    favorite: Color.fromRGBO(255, 183, 77, 1),
   );
 
   final Color primary;
@@ -97,6 +100,10 @@ class AppColors extends ThemeExtension<AppColors> {
   /// Teinte des ombres portées, que chaque ombre dose par son opacité.
   final Color shadow;
 
+  /// Étoile d'une station favorite : un ambre assez sombre pour se lire
+  /// sur le blanc des cartes, éclairci en sombre pour se lire sur leur gris.
+  final Color favorite;
+
   @override
   AppColors copyWith({
     Color? primary,
@@ -113,6 +120,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? selected,
     Color? onSelected,
     Color? shadow,
+    Color? favorite,
   }) {
     return AppColors(
       primary: primary ?? this.primary,
@@ -129,6 +137,7 @@ class AppColors extends ThemeExtension<AppColors> {
       selected: selected ?? this.selected,
       onSelected: onSelected ?? this.onSelected,
       shadow: shadow ?? this.shadow,
+      favorite: favorite ?? this.favorite,
     );
   }
 
@@ -156,6 +165,7 @@ class AppColors extends ThemeExtension<AppColors> {
       selected: mix(selected, other.selected),
       onSelected: mix(onSelected, other.onSelected),
       shadow: mix(shadow, other.shadow),
+      favorite: mix(favorite, other.favorite),
     );
   }
 }

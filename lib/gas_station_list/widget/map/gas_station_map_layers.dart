@@ -43,6 +43,10 @@ class GasStationMapLayers extends StatefulWidget {
 }
 
 class _GasStationMapLayersState extends State<GasStationMapLayers> {
+  /// Place laissée au bouton de recentrage, en bas à droite, par le crédit
+  /// des tuiles.
+  static const double _recenterWidth = 64;
+
   static const String _esriCanvas =
       'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
 
@@ -154,11 +158,14 @@ class _GasStationMapLayersState extends State<GasStationMapLayers> {
         ),
 
         // La licence des tuiles exige que le crédit reste visible : il suit
-        // le bord de la feuille au lieu de passer dessous.
+        // le bord de la feuille au lieu de passer dessous, et se tient à
+        // gauche du bouton de recentrage, posé au même niveau.
         ValueListenableBuilder<EdgeInsets>(
           valueListenable: widget.coveredInsets,
-          builder: (context, insets, child) =>
-              Padding(padding: insets, child: child),
+          builder: (context, insets, child) => Padding(
+            padding: insets + const EdgeInsets.only(right: _recenterWidth),
+            child: child,
+          ),
           child: RichAttributionWidget(
             attributions: const [
               TextSourceAttribution('Esri, HERE, Garmin'),
