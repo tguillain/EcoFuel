@@ -5,7 +5,8 @@
       "name": "EcoFuel · GPS réel",
       "request": "launch",
       "type": "dart",
-      "program": "lib/main.dart"
+      "program": "lib/main.dart",
+      "deviceId": "chrome"
     },
     {
       "name": "EcoFuel · Position figée (Chrome)",
@@ -23,6 +24,7 @@
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
+      "deviceId": "chrome",
       "toolArgs": [
         "--dart-define-from-file=env/location.json"
       ]
