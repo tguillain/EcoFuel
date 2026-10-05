@@ -23,6 +23,7 @@ class GasStationMap extends StatefulWidget {
     required this.userCoordinates,
     required this.radius,
     this.searchCenter,
+    this.onFavoritesTap,
     this.routeService = const RouteService(),
     this.coveredInsets = const AlwaysStoppedAnimation(EdgeInsets.zero),
     this.framingInsets = EdgeInsets.zero,
@@ -36,6 +37,9 @@ class GasStationMap extends StatefulWidget {
   /// Lieu cherché à la place de la position de l'utilisateur : la carte se
   /// cadre sur lui, le repère de l'utilisateur restant à sa place.
   final UserCoordinates? searchCenter;
+
+  /// Ouvre l'écran des favoris, depuis le bouton à gauche du recentrage.
+  final VoidCallback? onFavoritesTap;
 
   /// Donne à la fiche d'une station la durée du trajet.
   final RouteService routeService;
@@ -228,9 +232,8 @@ class _GasStationMapState extends State<GasStationMap> {
                 builder: (context, insets, child) =>
                     Padding(padding: insets, child: child),
                 child: GasStationMapOverlays(
-                  fuel: widget.fuel,
-                  stationLimit: widget.radius.mapStationLimit,
                   onRecenter: _centerMap,
+                  onFavoritesTap: widget.onFavoritesTap,
                 ),
               ),
             ),

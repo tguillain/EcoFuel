@@ -18,6 +18,7 @@ class GasStationMapBackground extends StatelessWidget {
     required this.framingInsets,
     this.userCoordinates,
     this.searchCenter,
+    this.onFavoritesTap,
   });
 
   final List<GasStation> stations;
@@ -27,6 +28,7 @@ class GasStationMapBackground extends StatelessWidget {
   final EdgeInsets framingInsets;
   final UserCoordinates? userCoordinates;
   final UserCoordinates? searchCenter;
+  final VoidCallback? onFavoritesTap;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class GasStationMapBackground extends StatelessWidget {
       radius: radius,
       coveredInsets: coveredInsets,
       framingInsets: framingInsets,
+      onFavoritesTap: onFavoritesTap,
     );
   }
 }

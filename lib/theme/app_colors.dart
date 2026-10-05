@@ -30,4 +30,8 @@ abstract final class AppColors {
 
   /// Filet entre deux lignes de prix de la fiche station.
   static const Color divider = Color.fromRGBO(236, 234, 227, 1);
+
+  /// Étoile d'une station favorite : un ambre assez sombre pour se lire sur
+  /// le blanc des cartes.
+  static const Color favorite = Color.fromRGBO(199, 119, 0, 1);
 }

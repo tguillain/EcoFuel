@@ -9,6 +9,13 @@ enum GasStationSortCriterion {
 
   final String label;
 
+  /// Le prix est l'ordre par défaut : seule la distance se choisit, d'une
+  /// pastille qui s'active et se désactive.
+  GasStationSortCriterion get withDistanceToggled =>
+      this == GasStationSortCriterion.distance
+      ? GasStationSortCriterion.price
+      : GasStationSortCriterion.distance;
+
   /// Le prix ne peut être comparé qu'à carburant donné, d'où le paramètre.
   /// Chaque critère retombe sur l'autre en cas d'égalité.
   Comparator<GasStation> comparatorFor(FuelType fuel) => switch (this) {

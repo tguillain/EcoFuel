@@ -1,13 +1,14 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
+import 'package:ecofuel/gas_station_list/model/brand_filter.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_filter_bar.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_list_header.dart';
 import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Panneau blanc en tête de l'écran : lieu, compteur et rayon, puis carburant
-/// et tri.
+/// Panneau blanc en tête de l'écran : lieu, compteur et rayon, puis carburant,
+/// tri et marque.
 class GasStationListPanel extends StatelessWidget {
   const GasStationListPanel({
     super.key,
@@ -18,6 +19,9 @@ class GasStationListPanel extends StatelessWidget {
     required this.selectedFuel,
     required this.onSortChanged,
     required this.onFuelChanged,
+    required this.brands,
+    required this.onBrandChanged,
+    this.selectedBrand,
     this.placeName,
     this.onPlaceTap,
   });
@@ -34,6 +38,9 @@ class GasStationListPanel extends StatelessWidget {
   final FuelType selectedFuel;
   final ValueChanged<GasStationSortCriterion> onSortChanged;
   final ValueChanged<FuelType> onFuelChanged;
+  final List<BrandCount> brands;
+  final String? selectedBrand;
+  final ValueChanged<String?> onBrandChanged;
   final String? placeName;
   final VoidCallback? onPlaceTap;
 
@@ -58,6 +65,9 @@ class GasStationListPanel extends StatelessWidget {
             selectedFuel: selectedFuel,
             onSortChanged: onSortChanged,
             onFuelChanged: onFuelChanged,
+            brands: brands,
+            selectedBrand: selectedBrand,
+            onBrandChanged: onBrandChanged,
           ),
         ],
       ),
