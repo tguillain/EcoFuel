@@ -6,7 +6,8 @@ import 'package:ecofuel/gas_station_list/widget/gas_station_list_header.dart';
 import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 
-/// Panneau blanc en tête de l'écran : compteur et rayon, puis carburant et tri.
+/// Panneau blanc en tête de l'écran : lieu, compteur et rayon, puis carburant
+/// et tri.
 class GasStationListPanel extends StatelessWidget {
   const GasStationListPanel({
     super.key,
@@ -17,6 +18,8 @@ class GasStationListPanel extends StatelessWidget {
     required this.selectedFuel,
     required this.onSortChanged,
     required this.onFuelChanged,
+    this.placeName,
+    this.onPlaceTap,
   });
 
   /// Métriques de l'artboard « Liste seule · cartes + filtres » : le panneau
@@ -31,6 +34,8 @@ class GasStationListPanel extends StatelessWidget {
   final FuelType selectedFuel;
   final ValueChanged<GasStationSortCriterion> onSortChanged;
   final ValueChanged<FuelType> onFuelChanged;
+  final String? placeName;
+  final VoidCallback? onPlaceTap;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +50,8 @@ class GasStationListPanel extends StatelessWidget {
             title: title,
             selectedRadius: selectedRadius,
             onRadiusChanged: onRadiusChanged,
+            placeName: placeName,
+            onPlaceTap: onPlaceTap,
           ),
           GasStationFilterBar(
             sortCriterion: sortCriterion,

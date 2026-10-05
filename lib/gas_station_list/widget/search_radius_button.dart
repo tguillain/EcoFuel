@@ -63,10 +63,21 @@ class SearchRadiusButton extends StatelessWidget {
             ),
             boxShadow: isFloating ? const [floatingShadow] : null,
           ),
-          child: Icon(
-            Icons.my_location_rounded,
-            size: isFloating ? 16 : 15,
-            color: AppColors.onSurface,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          // Le rayon s'affiche en clair : une icône de cible se confondait
+          // avec le recentrage de la carte.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              selectedRadius.label,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: AppColors.onSurface,
+              ),
+            ),
           ),
         ),
       ),

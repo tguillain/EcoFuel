@@ -22,6 +22,7 @@ class GasStationMap extends StatefulWidget {
     required this.fuel,
     required this.userCoordinates,
     required this.radius,
+    this.searchCenter,
     this.routeService = const RouteService(),
     this.coveredInsets = const AlwaysStoppedAnimation(EdgeInsets.zero),
     this.framingInsets = EdgeInsets.zero,
@@ -31,6 +32,10 @@ class GasStationMap extends StatefulWidget {
   final FuelType fuel;
   final UserCoordinates userCoordinates;
   final SearchRadius radius;
+
+  /// Lieu cherché à la place de la position de l'utilisateur : la carte se
+  /// cadre sur lui, le repère de l'utilisateur restant à sa place.
+  final UserCoordinates? searchCenter;
 
   /// Donne à la fiche d'une station la durée du trajet.
   final RouteService routeService;
@@ -71,6 +76,11 @@ class _GasStationMapState extends State<GasStationMap> {
   LatLng get _userPosition =>
       LatLng(widget.userCoordinates.latitude, widget.userCoordinates.longitude);
 
+  /// Centre de la recherche : le lieu cherché, sinon l'utilisateur.
+  UserCoordinates get _center => widget.searchCenter ?? widget.userCoordinates;
+
+  LatLng get _centerPosition => LatLng(_center.latitude, _center.longitude);
+
   /// Zoom de repli, utilisé tant qu'aucune station n'est affichée.
   double get _zoom => MapZoom.forRadius(widget.radius);
 
@@ -104,7 +114,7 @@ class _GasStationMapState extends State<GasStationMap> {
     );
   }
 
-  /// Cadrage englobant l'utilisateur et ses stations.
+  /// Cadrage englobant le centre de la recherche et ses stations.
   ///
   /// Remplace le cercle de rayon : la zone couverte se lit dans ce que la carte
   /// montre, sans poser un disque bleu par-dessus les rues.
@@ -117,7 +127,7 @@ class _GasStationMapState extends State<GasStationMap> {
 
     return CameraFit.bounds(
       bounds: LatLngBounds.fromPoints([
-        _userPosition,
+        _centerPosition,
         ...stations.map(
           (station) => LatLng(station.latitude, station.longitude),
         ),
@@ -147,8 +157,8 @@ class _GasStationMapState extends State<GasStationMap> {
     final bool radiusChanged = oldWidget.radius != widget.radius;
 
     final bool positionChanged = _hasMovedSignificantly(
-      oldWidget.userCoordinates,
-      widget.userCoordinates,
+      oldWidget.searchCenter ?? oldWidget.userCoordinates,
+      _center,
     );
 
     final bool fuelChanged = oldWidget.fuel != widget.fuel;
@@ -178,12 +188,12 @@ class _GasStationMapState extends State<GasStationMap> {
     return metres >= _significantMoveInMetres;
   }
 
-  /// Recadre la carte sur l'utilisateur et ses stations.
+  /// Recadre la carte sur le centre de la recherche et ses stations.
   void _centerMap() {
     final CameraFit? fit = _stationsFit;
 
     if (fit == null) {
-      _mapController.move(_userPosition, _zoom);
+      _mapController.move(_centerPosition, _zoom);
 
       return;
     }

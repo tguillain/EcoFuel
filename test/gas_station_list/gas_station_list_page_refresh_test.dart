@@ -1,3 +1,4 @@
+import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,6 +74,29 @@ void main() {
       await expandStationList(tester);
 
       expect(find.textContaining('Mis à jour à'), findsOneWidget);
+    });
+
+    testWidgets('recharge les stations quand le rayon change', (tester) async {
+      final service = FakeGasStationService(
+        stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
+      );
+
+      await pumpGasStationListPage(tester, service);
+      await tester.pumpAndSettle();
+
+      // Seul le bouton de l'en-tête affiché répond : celui de la liste est
+      // masqué tant que la carte est ouverte.
+      await tester.tap(
+        find.byTooltip('Changer le rayon de recherche').hitTestable(),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(PopupMenuItem<SearchRadius>, '25 km'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(service.callCount, 2);
+      expect(service.lastRadius, SearchRadius.twentyFiveKm);
     });
   });
 }

@@ -38,18 +38,20 @@ void main() {
 
       await pumpHeader(tester, onRadiusChanged: (value) => selected = value);
 
-      await tester.tap(find.byIcon(Icons.my_location_rounded));
+      await tester.tap(find.byTooltip('Changer le rayon de recherche'));
       await tester.pumpAndSettle();
 
       for (final radius in SearchRadius.values) {
         expect(
-          find.text(radius.label),
+          find.widgetWithText(PopupMenuItem<SearchRadius>, radius.label),
           findsOneWidget,
           reason: 'rayon « ${radius.label} » absent du menu',
         );
       }
 
-      await tester.tap(find.text('25 km'));
+      await tester.tap(
+        find.widgetWithText(PopupMenuItem<SearchRadius>, '25 km'),
+      );
       await tester.pumpAndSettle();
 
       expect(selected, SearchRadius.twentyFiveKm);

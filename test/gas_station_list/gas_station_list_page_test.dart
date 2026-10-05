@@ -1,5 +1,4 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
-import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -253,25 +252,6 @@ void main() {
         tester.widget<GasStationCard>(find.byType(GasStationCard)).station.id,
         'sp98',
       );
-    });
-
-    testWidgets('recharge les stations quand le rayon change', (tester) async {
-      final service = FakeGasStationService(
-        stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
-      );
-
-      await pumpGasStationListPage(tester, service);
-      await tester.pumpAndSettle();
-
-      // Seul le bouton de l'en-tête affiché répond : celui de la liste est
-      // masqué tant que la carte est ouverte.
-      await tester.tap(find.byIcon(Icons.my_location_rounded).hitTestable());
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('25 km'));
-      await tester.pumpAndSettle();
-
-      expect(service.callCount, 2);
-      expect(service.lastRadius, SearchRadius.twentyFiveKm);
     });
 
     testWidgets('affiche un état vide sans station pour le carburant', (

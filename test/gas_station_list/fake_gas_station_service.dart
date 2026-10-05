@@ -3,15 +3,19 @@ import 'package:ecofuel/gas_station_list/gas_station_list_page.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:ecofuel/gas_station_list/service/gas_station_service.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
+import 'package:ecofuel/place_search/service/place_search_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> pumpGasStationListPage(
   WidgetTester tester,
-  GasStationService service,
-) async {
+  GasStationService service, {
+  PlaceSearchService placeSearch = const PlaceSearchService(),
+}) async {
   await tester.pumpWidget(
-    MaterialApp(home: GasStationListPage(service: service)),
+    MaterialApp(
+      home: GasStationListPage(service: service, placeSearch: placeSearch),
+    ),
   );
 }
 
@@ -39,6 +43,9 @@ class FakeGasStationService implements GasStationService {
   /// Dernier rayon reçu.
   SearchRadius? lastRadius;
 
+  /// Dernier centre de recherche reçu.
+  UserCoordinates? lastCoordinates;
+
   /// Simule la position GPS de l'utilisateur.
   @override
   Future<UserCoordinates> currentCoordinates() async {
@@ -58,6 +65,8 @@ class FakeGasStationService implements GasStationService {
     callCount++;
 
     lastRadius = radius;
+
+    lastCoordinates = coordinates;
 
     if (error != null) {
       throw error!;

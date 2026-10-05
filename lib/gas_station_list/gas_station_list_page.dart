@@ -8,22 +8,26 @@ import 'package:ecofuel/gas_station_list/service/gas_station_service.dart';
 import 'package:ecofuel/gas_station_list/service/lifecycle_refresher.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_list_panel.dart';
-import 'package:ecofuel/gas_station_list/widget/map/gas_station_map.dart';
+import 'package:ecofuel/gas_station_list/widget/map/gas_station_map_background.dart';
 import 'package:ecofuel/gas_station_list/widget/map/gas_station_map_header.dart';
 import 'package:ecofuel/gas_station_list/widget/map_list_sheet.dart';
 import 'package:ecofuel/gas_station_list/widget/message_state.dart';
 import 'package:ecofuel/gas_station_list/widget/station_sheet_content.dart';
-import 'package:ecofuel/theme/app_colors.dart';
-import 'package:flutter/foundation.dart';
+import 'package:ecofuel/place_search/model/search_place.dart';
+import 'package:ecofuel/place_search/model/station_search.dart';
+import 'package:ecofuel/place_search/service/place_search_service.dart';
+import 'package:ecofuel/place_search/widget/place_search_sheet.dart';
 import 'package:flutter/material.dart';
 
 class GasStationListPage extends StatefulWidget {
   const GasStationListPage({
     super.key,
     this.service = const GasStationService(),
+    this.placeSearch = const PlaceSearchService(),
   });
 
   final GasStationService service;
+  final PlaceSearchService placeSearch;
 
   @override
   State<GasStationListPage> createState() => _GasStationListPageState();
@@ -48,6 +52,10 @@ class _GasStationListPageState extends State<GasStationListPage> {
   SearchRadius _selectedRadius = SearchRadius.fiveKm;
 
   GasStationSortCriterion _sortCriterion = GasStationSortCriterion.price;
+
+  /// Lieu cherché à la place de la position de l'utilisateur ; `null` autour
+  /// de lui. Le rafraîchissement automatique y reste fixé.
+  SearchPlace? _searchPlace;
 
   bool _isLoading = false;
 
@@ -77,13 +85,11 @@ class _GasStationListPageState extends State<GasStationListPage> {
     super.dispose();
   }
 
-  /// Charge la position puis les stations.
+  /// Charge la position puis les stations, autour du lieu cherché s'il y en a.
   ///
-  /// Un rafraîchissement [silent] n'affiche ni indicateur ni
-  /// erreur : il part tout seul chaque minute, et remplacer la
-  /// liste par un tourniquet ou un message d'échec à chaque
-  /// passage serait pire que de garder à l'écran les dernières
-  /// données connues.
+  /// Un rafraîchissement [silent] n'affiche ni indicateur ni erreur : il part
+  /// tout seul chaque minute, et remplacer la liste par un tourniquet ou un
+  /// message d'échec serait pire que garder les dernières données connues.
   Future<void> _loadStations({bool silent = false}) async {
     if (!silent) {
       setState(() {
@@ -99,7 +105,7 @@ class _GasStationListPageState extends State<GasStationListPage> {
       final List<GasStation> stations = await widget.service
           .fetchNearbyStations(
             radius: _selectedRadius,
-            coordinates: coordinates,
+            coordinates: _searchPlace?.coordinates ?? coordinates,
           );
 
       if (!mounted) {
@@ -134,9 +140,7 @@ class _GasStationListPageState extends State<GasStationListPage> {
       });
     } finally {
       if (mounted && !silent) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -147,27 +151,14 @@ class _GasStationListPageState extends State<GasStationListPage> {
     sortCriterion: _sortCriterion,
   );
 
-  String _headerTitle(int count) {
-    if (_isLoading) {
-      return 'Recherche…';
-    }
+  String _headerTitle(int count) =>
+      _isLoading ? 'Recherche…' : '$count station${count > 1 ? 's' : ''}';
 
-    return '$count station${count > 1 ? 's' : ''}';
-  }
-
-  /// Changement du carburant.
-  void _onFuelChanged(FuelType fuel) {
-    setState(() {
-      _selectedFuel = fuel;
-    });
-  }
+  void _onFuelChanged(FuelType fuel) => setState(() => _selectedFuel = fuel);
 
   /// Changement Prix / Distance : inutile de refaire un appel API.
-  void _onSortChanged(GasStationSortCriterion criterion) {
-    setState(() {
-      _sortCriterion = criterion;
-    });
-  }
+  void _onSortChanged(GasStationSortCriterion criterion) =>
+      setState(() => _sortCriterion = criterion);
 
   /// Changement de rayon : la zone de recherche change, on recharge.
   Future<void> _onRadiusChanged(SearchRadius radius) async {
@@ -175,9 +166,33 @@ class _GasStationListPageState extends State<GasStationListPage> {
       return;
     }
 
-    setState(() {
-      _selectedRadius = radius;
-    });
+    setState(() => _selectedRadius = radius);
+
+    await _loadStations();
+  }
+
+  /// Change le lieu, le rayon et le carburant de la recherche d'un coup.
+  Future<void> _choosePlace() async {
+    final StationSearch? search = await showPlaceSearchSheet(
+      context,
+      service: widget.placeSearch,
+      initial: StationSearch(
+        place: _searchPlace,
+        radius: _selectedRadius,
+        fuel: _selectedFuel,
+      ),
+    );
+
+    if (search != null && mounted) {
+      _selectedRadius = search.radius;
+      _selectedFuel = search.fuel;
+
+      await _searchAround(search.place);
+    }
+  }
+
+  Future<void> _searchAround(SearchPlace? place) async {
+    setState(() => _searchPlace = place);
 
     await _loadStations();
   }
@@ -224,8 +239,15 @@ class _GasStationListPageState extends State<GasStationListPage> {
                   selectedFuel: _selectedFuel,
                   onSortChanged: _onSortChanged,
                   onFuelChanged: _onFuelChanged,
+                  placeName: _searchPlace?.name,
+                  onPlaceTap: _choosePlace,
                 ),
                 mapHeader: GasStationMapHeader(
+                  placeName: _searchPlace?.name,
+                  onPlaceTap: _choosePlace,
+                  onPlaceCleared: _searchPlace == null
+                      ? null
+                      : () => _searchAround(null),
                   selectedRadius: _selectedRadius,
                   onRadiusChanged: _onRadiusChanged,
                   selectedFuel: _selectedFuel,
@@ -236,11 +258,16 @@ class _GasStationListPageState extends State<GasStationListPage> {
                 // La carte place un repère par point de distribution : le
                 // regroupement est une commodité de lecture propre à la
                 // liste, pas une réalité du terrain.
-                mapBuilder: (coveredInsets, framingInsets) => _buildMap(
-                  [for (final group in groups) ...group.stations],
-                  coveredInsets: coveredInsets,
-                  framingInsets: framingInsets,
-                ),
+                mapBuilder: (coveredInsets, framingInsets) =>
+                    GasStationMapBackground(
+                      stations: [for (final group in groups) ...group.stations],
+                      fuel: _selectedFuel,
+                      radius: _selectedRadius,
+                      userCoordinates: _userCoordinates,
+                      searchCenter: _searchPlace?.coordinates,
+                      coveredInsets: coveredInsets,
+                      framingInsets: framingInsets,
+                    ),
                 sliverBuilder: (peekKey) => StationSheetContent(
                   isLoading: _isLoading,
                   groups: groups,
@@ -253,31 +280,6 @@ class _GasStationListPageState extends State<GasStationListPage> {
                 ),
               ),
       ),
-    );
-  }
-
-  /// Construit la carte, en fond sous l'en-tête et la feuille.
-  Widget _buildMap(
-    List<GasStation> stations, {
-    required ValueListenable<EdgeInsets> coveredInsets,
-    required EdgeInsets framingInsets,
-  }) {
-    final UserCoordinates? coordinates = _userCoordinates;
-
-    // Seul le premier chargement n'a pas encore de position : un échec
-    // remplace tout l'écran par son message, et les suivants gardent la
-    // dernière position connue.
-    if (coordinates == null) {
-      return const ColoredBox(color: AppColors.surfaceMuted);
-    }
-
-    return GasStationMap(
-      stations: stations,
-      fuel: _selectedFuel,
-      userCoordinates: coordinates,
-      radius: _selectedRadius,
-      coveredInsets: coveredInsets,
-      framingInsets: framingInsets,
     );
   }
 }
