@@ -4,9 +4,12 @@ import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-/// Les carburants autres que celui choisi, dans l'ordre du sélecteur. Un
-/// carburant que la station ne vend pas reste listé : savoir qu'il manque
-/// évite d'y aller pour rien.
+/// Les carburants autres que celui choisi, dans l'ordre du sélecteur.
+///
+/// Un carburant courant que la station ne vend pas reste listé : savoir qu'il
+/// manque évite d'y aller pour rien. Un carburant plus rare n'apparaît que
+/// s'il est vendu, sans quoi la plupart des fiches aligneraient E85 et GPLc
+/// indisponibles.
 class OtherFuelPrices extends StatelessWidget {
   const OtherFuelPrices({
     super.key,
@@ -21,7 +24,11 @@ class OtherFuelPrices extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fuels = FuelType.values.where((fuel) => fuel != selectedFuel);
+    final fuels = FuelType.values.where(
+      (fuel) =>
+          fuel != selectedFuel &&
+          (fuel.isPopular || station.priceFor(fuel) != null),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

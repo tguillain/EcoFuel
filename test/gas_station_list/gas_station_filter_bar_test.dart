@@ -12,6 +12,7 @@ void main() {
   Future<void> pumpFilterBar(
     WidgetTester tester, {
     double width = 390,
+    FuelType selectedFuel = FuelType.e10,
     ValueChanged<GasStationSortCriterion>? onSortChanged,
     ValueChanged<FuelType>? onFuelChanged,
   }) async {
@@ -27,7 +28,7 @@ void main() {
             padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
             child: GasStationFilterBar(
               sortCriterion: GasStationSortCriterion.price,
-              selectedFuel: FuelType.e10,
+              selectedFuel: selectedFuel,
               onSortChanged: onSortChanged ?? (_) {},
               onFuelChanged: onFuelChanged ?? (_) {},
             ),
@@ -63,9 +64,11 @@ void main() {
     ) async {
       await pumpFilterBar(tester);
 
-      for (final fuel in FuelType.values) {
+      for (final fuel in FuelType.popular) {
         expect(find.text(fuel.label), findsOneWidget);
       }
+
+      expect(find.text('Autres'), findsOneWidget);
 
       for (final criterion in GasStationSortCriterion.values) {
         expect(find.text(criterion.label), findsOneWidget);
@@ -80,33 +83,38 @@ void main() {
       expect(pillColor(tester, 'E10'), AppColors.onSurface);
       expect(labelColor(tester, 'E10'), AppColors.onPrimary);
 
-      expect(labelColor(tester, 'SP95'), AppColors.onSurfaceMuted);
+      expect(labelColor(tester, 'SP98'), AppColors.onSurfaceMuted);
       expect(labelColor(tester, 'Distance'), AppColors.onSurfaceSubtle);
-      expect(pillColor(tester, 'SP95'), isNot(AppColors.onSurface));
+      expect(pillColor(tester, 'SP98'), isNot(AppColors.onSurface));
 
       expect(pillColor(tester, 'Prix croissant'), AppColors.onSurface);
       expect(pillColor(tester, 'Distance'), AppColors.surfaceMuted);
     });
 
-    testWidgets('étale les carburants sur toute la largeur, à largeur égale', (
-      tester,
-    ) async {
-      const width = 390.0;
-      await pumpFilterBar(tester, width: width);
+    testWidgets(
+      'étale les cases de carburant sur toute la largeur, à largeur égale',
+      (tester) async {
+        const width = 390.0;
+        await pumpFilterBar(tester, width: width);
 
-      final widths = FuelType.values
-          .map((fuel) => pillRect(tester, fuel.label).width)
-          .toSet();
+        final labels = [
+          for (final fuel in FuelType.popular) fuel.label,
+          'Autres',
+        ];
+        final widths = labels
+            .map((label) => pillRect(tester, label).width)
+            .toSet();
 
-      expect(widths, hasLength(1));
+        expect(widths, hasLength(1));
 
-      final first = pillRect(tester, FuelType.values.first.label);
-      final last = pillRect(tester, FuelType.values.last.label);
+        final first = pillRect(tester, labels.first);
+        final last = pillRect(tester, labels.last);
 
-      // La piste ajoute 3 px de rembourrage à l'intérieur de la marge.
-      expect(first.left, horizontalPadding + 3);
-      expect(last.right, width - horizontalPadding - 3);
-    });
+        // La piste ajoute 3 px de rembourrage à l'intérieur de la marge.
+        expect(first.left, horizontalPadding + 3);
+        expect(last.right, width - horizontalPadding - 3);
+      },
+    );
 
     // Les critères de tri se dimensionnent sur leur libellé : « Prix
     // croissant » est bien plus long que « Distance », les étaler à largeur
@@ -161,6 +169,40 @@ void main() {
         moreOrLessEquals(7 * 2, epsilon: 1),
         reason: 'la pastille de tri doit garder 7 px au-dessus/dessous',
       );
+    });
+
+    // Les carburants moins distribués se rangent derrière la quatrième case,
+    // pour garder à la piste des cases lisibles sur un téléphone.
+    testWidgets('propose les autres carburants dans un menu', (tester) async {
+      FuelType? fuel;
+
+      await pumpFilterBar(tester, onFuelChanged: (value) => fuel = value);
+
+      for (final other in FuelType.others) {
+        expect(find.text(other.label), findsNothing);
+      }
+
+      await tester.tap(find.text('Autres'));
+      await tester.pumpAndSettle();
+
+      for (final other in FuelType.others) {
+        expect(find.text(other.label), findsOneWidget);
+      }
+
+      await tester.tap(find.text('GPLc'));
+      await tester.pumpAndSettle();
+
+      expect(fuel, FuelType.gplc);
+    });
+
+    testWidgets('affiche dans la quatrième case le carburant rare choisi', (
+      tester,
+    ) async {
+      await pumpFilterBar(tester, selectedFuel: FuelType.e85);
+
+      expect(find.text('Autres'), findsNothing);
+      expect(pillColor(tester, 'E85'), AppColors.onSurface);
+      expect(labelColor(tester, 'E85'), AppColors.onPrimary);
     });
 
     testWidgets('remonte les changements de carburant et de critère', (

@@ -58,7 +58,7 @@ class _FuelSelector extends StatelessWidget {
       ),
       child: Row(
         children: [
-          for (final fuel in FuelType.values)
+          for (final fuel in FuelType.popular)
             Expanded(
               child: _Pill(
                 label: fuel.label,
@@ -72,7 +72,59 @@ class _FuelSelector extends StatelessWidget {
                 onTap: () => onSelected(fuel),
               ),
             ),
+          Expanded(
+            child: _OtherFuelsPill(
+              selected: selected,
+              radius: _pillRadius,
+              padding: _pillPadding,
+              onSelected: onSelected,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Quatrième case de la piste : les carburants moins distribués, derrière un
+/// menu. Elle affiche celui qui est choisi, ou « Autres » tant qu'aucun ne
+/// l'est.
+class _OtherFuelsPill extends StatelessWidget {
+  const _OtherFuelsPill({
+    required this.selected,
+    required this.radius,
+    required this.padding,
+    required this.onSelected,
+  });
+
+  final FuelType selected;
+  final double radius;
+  final EdgeInsets padding;
+  final ValueChanged<FuelType> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isSelected = !selected.isPopular;
+
+    return PopupMenuButton<FuelType>(
+      initialValue: isSelected ? selected : null,
+      onSelected: onSelected,
+      tooltip: 'Autres carburants',
+      position: PopupMenuPosition.under,
+      padding: EdgeInsets.zero,
+      itemBuilder: (context) => [
+        for (final fuel in FuelType.others)
+          PopupMenuItem<FuelType>(value: fuel, child: Text(fuel.label)),
+      ],
+      // Le menu capte le tap : la pastille ne fait que se dessiner.
+      child: _Pill(
+        label: isSelected ? selected.label : 'Autres',
+        trailingIcon: Icons.expand_more,
+        isSelected: isSelected,
+        radius: radius,
+        padding: padding,
+        background: Colors.transparent,
+        foreground: AppColors.onSurfaceMuted,
       ),
     );
   }
@@ -119,7 +171,8 @@ class _Pill extends StatelessWidget {
     required this.radius,
     required this.padding,
     required this.foreground,
-    required this.onTap,
+    this.onTap,
+    this.trailingIcon,
     this.background = AppColors.surfaceMuted,
   });
 
@@ -129,11 +182,50 @@ class _Pill extends StatelessWidget {
   final EdgeInsets padding;
   final Color foreground;
   final Color background;
-  final VoidCallback onTap;
+
+  /// Absent quand un parent capte déjà le tap, comme un menu.
+  final VoidCallback? onTap;
+
+  /// Signale un menu derrière la pastille.
+  final IconData? trailingIcon;
 
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
+    final Color color = isSelected ? AppColors.onPrimary : foreground;
+    final IconData? icon = trailingIcon;
+
+    final Widget content = Padding(
+      padding: padding,
+      // `widthFactor: 1` fait suivre au fond la largeur du libellé quand
+      // les contraintes sont lâches (pastilles de tri), sans empêcher de
+      // remplir une largeur imposée (piste segmentée).
+      child: Center(
+        widthFactor: 1,
+        heightFactor: 1,
+        // Réduit le libellé au lieu de le tronquer sur écran étroit ou en
+        // grande taille de texte.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            spacing: 2,
+            children: [
+              Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: color,
+                ),
+              ),
+              if (icon != null) Icon(icon, size: 15, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
 
     return Semantics(
       button: true,
@@ -141,34 +233,9 @@ class _Pill extends StatelessWidget {
       child: Material(
         color: isSelected ? AppColors.onSurface : background,
         borderRadius: borderRadius,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: borderRadius,
-          child: Padding(
-            padding: padding,
-            // `widthFactor: 1` fait suivre au fond la largeur du libellé quand
-            // les contraintes sont lâches (pastilles de tri), sans empêcher de
-            // remplir une largeur imposée (piste segmentée).
-            child: Center(
-              widthFactor: 1,
-              heightFactor: 1,
-              // Réduit le libellé au lieu de le tronquer sur écran étroit ou en
-              // grande taille de texte.
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected ? AppColors.onPrimary : foreground,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        child: onTap == null
+            ? content
+            : InkWell(onTap: onTap, borderRadius: borderRadius, child: content),
       ),
     );
   }

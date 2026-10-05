@@ -28,8 +28,8 @@ void main() {
     isClosed: false,
     pricesByFuel: const {
       FuelType.e10: 1.669,
-      FuelType.sp95: null,
-      FuelType.sp98: 1.779,
+      FuelType.sp95: 1.729,
+      FuelType.sp98: null,
       FuelType.diesel: 1.639,
     },
     priceUpdatedAtByFuel: {
@@ -83,16 +83,25 @@ void main() {
       );
     });
 
-    testWidgets('liste les autres carburants, vendus ou non', (tester) async {
-      await pumpDetail(tester);
+    // Un carburant courant reste listé même absent : savoir qu'il manque
+    // évite d'y aller pour rien. Les carburants plus rares ne s'affichent que
+    // si la station les vend, sans quoi la plupart des fiches aligneraient
+    // E85 et GPLc indisponibles.
+    testWidgets(
+      'liste les carburants courants, et les rares s\'ils sont vendus',
+      (tester) async {
+        await pumpDetail(tester);
 
-      expect(find.text('Gazole'), findsOneWidget);
-      expect(find.text('1,639 €'), findsOneWidget);
-      expect(find.text('SP98'), findsOneWidget);
-      expect(find.text('1,779 €'), findsOneWidget);
-      expect(find.text('SP95'), findsOneWidget);
-      expect(find.text('Indisponible'), findsOneWidget);
-    });
+        expect(find.text('Gazole'), findsOneWidget);
+        expect(find.text('1,639 €'), findsOneWidget);
+        expect(find.text('SP98'), findsOneWidget);
+        expect(find.text('Indisponible'), findsOneWidget);
+        expect(find.text('SP95'), findsOneWidget);
+        expect(find.text('1,729 €'), findsOneWidget);
+        expect(find.text('E85'), findsNothing);
+        expect(find.text('GPLc'), findsNothing);
+      },
+    );
 
     testWidgets('résume les services et l\'ancienneté du relevé', (
       tester,
