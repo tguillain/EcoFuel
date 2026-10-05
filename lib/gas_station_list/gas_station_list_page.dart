@@ -48,10 +48,6 @@ class _GasStationListPageState extends State<GasStationListPage> {
 
   DisplayMode _displayMode = DisplayMode.list;
 
-  /// Itinéraire demandé depuis la fiche d'une station de la liste, que la
-  /// carte trace à son ouverture.
-  GasStation? _routeDestination;
-
   bool _isLoading = false;
 
   String? _errorMessage;
@@ -193,19 +189,15 @@ class _GasStationListPageState extends State<GasStationListPage> {
     await _loadStations();
   }
 
-  /// Ouvre la fiche d'une station ; l'itinéraire, s'il est demandé, s'affiche
-  /// sur la carte, seule à savoir le tracer.
-  Future<void> _openDetail(
-    GasStation station, {
-    required bool isCheapest,
-  }) async {
+  /// Ouvre la fiche d'une station.
+  void _openDetail(GasStation station, {required bool isCheapest}) {
     final UserCoordinates? coordinates = _userCoordinates;
 
     if (coordinates == null) {
       return;
     }
 
-    final bool wantsRoute = await GasStationDetailPage.open(
+    GasStationDetailPage.open(
       context,
       station: station,
       fuel: _selectedFuel,
@@ -213,15 +205,6 @@ class _GasStationListPageState extends State<GasStationListPage> {
       userCoordinates: coordinates,
       isCheapest: isCheapest,
     );
-
-    if (!wantsRoute || !mounted) {
-      return;
-    }
-
-    setState(() {
-      _displayMode = DisplayMode.map;
-      _routeDestination = station;
-    });
   }
 
   @override
@@ -289,8 +272,6 @@ class _GasStationListPageState extends State<GasStationListPage> {
       fuel: _selectedFuel,
       userCoordinates: coordinates,
       radius: _selectedRadius,
-      routeDestination: _routeDestination,
-      onRouteRequestHandled: () => setState(() => _routeDestination = null),
     );
   }
 }

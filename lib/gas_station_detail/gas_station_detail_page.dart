@@ -1,5 +1,6 @@
 import 'package:ecofuel/gas_station_detail/formatter/price_freshness_formatter.dart';
 import 'package:ecofuel/gas_station_detail/formatter/station_service_formatter.dart';
+import 'package:ecofuel/gas_station_detail/service/directions_launcher.dart';
 import 'package:ecofuel/gas_station_detail/widget/freshness_note.dart';
 import 'package:ecofuel/gas_station_detail/widget/headline_price.dart';
 import 'package:ecofuel/gas_station_detail/widget/other_fuel_prices.dart';
@@ -20,7 +21,7 @@ import 'package:intl/intl.dart';
 
 /// Fiche d'une station, d'après l'artboard « Fiche station · éditoriale » :
 /// le prix du carburant choisi en tête, les autres carburants et les services
-/// dessous, l'itinéraire à portée de pouce.
+/// dessous, l'itinéraire Google Maps à portée de pouce.
 class GasStationDetailPage extends StatefulWidget {
   const GasStationDetailPage({
     super.key,
@@ -30,6 +31,7 @@ class GasStationDetailPage extends StatefulWidget {
     required this.userCoordinates,
     this.isCheapest = false,
     this.routeService = const RouteService(),
+    this.directionsLauncher = const DirectionsLauncher(),
     this.now,
   });
 
@@ -43,12 +45,13 @@ class GasStationDetailPage extends StatefulWidget {
 
   final RouteService routeService;
 
+  final DirectionsLauncher directionsLauncher;
+
   /// N'existe que pour rendre l'ancienneté du relevé testable.
   final DateTime? now;
 
-  /// Ouvre la fiche. Résout à `true` quand l'utilisateur demande l'itinéraire,
-  /// que l'appelant affiche alors sur la carte.
-  static Future<bool> open(
+  /// Ouvre la fiche.
+  static Future<void> open(
     BuildContext context, {
     required GasStation station,
     required FuelType fuel,
@@ -56,8 +59,8 @@ class GasStationDetailPage extends StatefulWidget {
     required UserCoordinates userCoordinates,
     bool isCheapest = false,
     RouteService routeService = const RouteService(),
-  }) async {
-    final wantsRoute = await Navigator.of(context).push<bool>(
+  }) {
+    return Navigator.of(context).push<void>(
       MaterialPageRoute(
         builder: (_) => GasStationDetailPage(
           station: station,
@@ -69,8 +72,6 @@ class GasStationDetailPage extends StatefulWidget {
         ),
       ),
     );
-
-    return wantsRoute ?? false;
   }
 
   @override
@@ -95,8 +96,7 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
     _loadRouteDuration();
   }
 
-  /// La durée n'est qu'un complément : en cas d'échec, la fiche s'en passe et
-  /// la carte signalera l'erreur si l'itinéraire est demandé.
+  /// La durée n'est qu'un complément : en cas d'échec, la fiche s'en passe.
   Future<void> _loadRouteDuration() async {
     try {
       final RouteResult route = await widget.routeService.fetchRoute(
@@ -115,6 +115,18 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
     } catch (_) {
       return;
     }
+  }
+
+  Future<void> _openDirections() async {
+    final bool opened = await widget.directionsLauncher.open(_station);
+
+    if (opened || !mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Impossible d\'ouvrir Google Maps.')),
+    );
   }
 
   String get _eyebrow {
@@ -169,7 +181,7 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
                     child: TextButton.icon(
-                      onPressed: () => Navigator.of(context).pop(false),
+                      onPressed: () => Navigator.of(context).pop(),
                       icon: const Icon(Icons.chevron_left),
                       label: const Text('Retour'),
                       style: TextButton.styleFrom(
@@ -257,7 +269,7 @@ class _GasStationDetailPageState extends State<GasStationDetailPage> {
       ),
       bottomNavigationBar: RouteBar(
         minutes: _routeMinutes,
-        onPressed: () => Navigator.of(context).pop(true),
+        onPressed: _openDirections,
       ),
     );
   }

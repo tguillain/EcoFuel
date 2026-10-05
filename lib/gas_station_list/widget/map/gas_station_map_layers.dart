@@ -1,6 +1,5 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
-import 'package:ecofuel/gas_station_list/model/route_result.dart';
 import 'package:ecofuel/gas_station_list/widget/map/cluster_marker.dart';
 import 'package:ecofuel/gas_station_list/widget/map/gas_station_marker.dart';
 import 'package:ecofuel/gas_station_list/widget/map/map_station_selection.dart';
@@ -9,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
-/// Fond OpenStreetMap, itinéraire, utilisateur et stations.
+/// Fond OpenStreetMap, utilisateur et stations.
 ///
 /// Les stations trop proches à l'écran se regroupent en un rond ; le
 /// regroupement suit le zoom, donc la vue en garde le niveau courant.
@@ -23,7 +22,6 @@ class GasStationMapLayers extends StatefulWidget {
     required this.markerEntries,
     required this.fuel,
     required this.onStationTap,
-    this.route,
   });
 
   final MapController mapController;
@@ -33,7 +31,6 @@ class GasStationMapLayers extends StatefulWidget {
   final List<MapMarkerEntry> markerEntries;
   final FuelType fuel;
   final ValueChanged<GasStation> onStationTap;
-  final RouteResult? route;
 
   @override
   State<GasStationMapLayers> createState() => _GasStationMapLayersState();
@@ -78,7 +75,6 @@ class _GasStationMapLayersState extends State<GasStationMapLayers> {
 
   @override
   Widget build(BuildContext context) {
-    final RouteResult? route = widget.route;
     final List<StationCluster> clusters = StationClusterer.cluster(
       widget.markerEntries,
       zoom: _zoom,
@@ -103,20 +99,6 @@ class _GasStationMapLayersState extends State<GasStationMapLayers> {
               '{z}/{x}/{y}.png',
           userAgentPackageName: 'com.example.ecofuel',
         ),
-
-        // =============================
-        // ROUTE
-        // =============================
-        if (route != null)
-          PolylineLayer(
-            polylines: [
-              Polyline(
-                points: route.points,
-                strokeWidth: 6,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            ],
-          ),
 
         // =============================
         // STATIONS + UTILISATEUR

@@ -13,7 +13,6 @@ class MapStationSelection {
     required this.stations,
     required this.fuel,
     required this.limit,
-    this.routeDestination,
   });
 
   final List<GasStation> stations;
@@ -22,9 +21,6 @@ class MapStationSelection {
   /// Nombre maximal de stations retenues : au-delà, la carte devient
   /// illisible.
   final int limit;
-
-  /// Destination de l'itinéraire en cours, à garder affichée.
-  final GasStation? routeDestination;
 
   /// Stations qui ont des coordonnées et un prix pour le carburant choisi.
   List<GasStation> get _located {
@@ -38,25 +34,9 @@ class MapStationSelection {
         .toList();
   }
 
-  /// Les meilleures stations, prix et distance confondus, au plus [limit]. La
-  /// destination d'un itinéraire reste affichée même hors de ce classement :
-  /// la route mènerait sinon vers un point vide.
-  List<GasStation> get visible {
-    final List<GasStation> best = EffectivePrice.best(
-      _located,
-      fuel: fuel,
-      count: limit,
-    );
-
-    final GasStation? destination = routeDestination;
-
-    if (destination == null ||
-        best.any((station) => station.id == destination.id)) {
-      return best;
-    }
-
-    return [...best, destination];
-  }
+  /// Les meilleures stations, prix et distance confondus, au plus [limit].
+  List<GasStation> get visible =>
+      EffectivePrice.best(_located, fuel: fuel, count: limit);
 
   /// Stations visibles et leur couleur, de la plus chère à la moins chère.
   ///

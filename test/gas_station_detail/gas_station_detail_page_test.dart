@@ -1,4 +1,5 @@
 import 'package:ecofuel/gas_station_detail/gas_station_detail_page.dart';
+import 'package:ecofuel/gas_station_detail/service/directions_launcher.dart';
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
@@ -46,6 +47,7 @@ void main() {
     WidgetTester tester, {
     RouteService routeService = const _FakeRouteService(minutes: 4),
     bool isCheapest = true,
+    DirectionsLauncher directionsLauncher = const DirectionsLauncher(),
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -56,6 +58,7 @@ void main() {
           userCoordinates: coordinates,
           isCheapest: isCheapest,
           routeService: routeService,
+          directionsLauncher: directionsLauncher,
           now: now,
         ),
       ),
@@ -118,41 +121,56 @@ void main() {
       expect(find.text('Itinéraire'), findsOneWidget);
     });
 
-    testWidgets('renvoie la demande d\'itinéraire à l\'appelant', (
-      tester,
-    ) async {
-      bool? wantsRoute;
+    testWidgets('ouvre l\'itinéraire dans Google Maps', (tester) async {
+      final launcher = _FakeDirectionsLauncher(opens: true);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Builder(
-            builder: (context) => TextButton(
-              onPressed: () async {
-                wantsRoute = await GasStationDetailPage.open(
-                  context,
-                  station: station,
-                  fuel: FuelType.e10,
-                  radius: SearchRadius.fiveKm,
-                  userCoordinates: coordinates,
-                  routeService: const _FakeRouteService(minutes: 4),
-                );
-              },
-              child: const Text('Ouvrir'),
-            ),
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Ouvrir'));
-      await tester.pumpAndSettle();
+      await pumpDetail(tester, directionsLauncher: launcher);
 
       await tester.tap(find.text('Itinéraire · 4 min'));
       await tester.pumpAndSettle();
 
-      expect(wantsRoute, isTrue);
-      expect(find.byType(GasStationDetailPage), findsNothing);
+      expect(launcher.openedStations, [station]);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('prévient quand Google Maps ne s\'ouvre pas', (tester) async {
+      await pumpDetail(
+        tester,
+        directionsLauncher: _FakeDirectionsLauncher(opens: false),
+      );
+
+      await tester.tap(find.text('Itinéraire · 4 min'));
+      await tester.pump();
+
+      expect(find.text('Impossible d\'ouvrir Google Maps.'), findsOneWidget);
     });
   });
+
+  test('vise la station en voiture dans Google Maps', () {
+    final uri = DirectionsLauncher.uriFor(station);
+
+    expect(uri.host, 'www.google.com');
+    expect(uri.path, '/maps/dir/');
+    expect(uri.queryParameters, {
+      'api': '1',
+      'destination': '47.18,-1.55',
+      'travelmode': 'driving',
+    });
+  });
+}
+
+class _FakeDirectionsLauncher implements DirectionsLauncher {
+  _FakeDirectionsLauncher({required this.opens});
+
+  final bool opens;
+  final List<GasStation> openedStations = [];
+
+  @override
+  Future<bool> open(GasStation station) async {
+    openedStations.add(station);
+
+    return opens;
+  }
 }
 
 class _FakeRouteService implements RouteService {
