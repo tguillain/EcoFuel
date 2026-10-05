@@ -1,4 +1,5 @@
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
+import 'package:ecofuel/gas_station_list/widget/search_radius_button.dart';
 import 'package:ecofuel/theme/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -11,7 +12,6 @@ class GasStationListHeader extends StatelessWidget {
     required this.selectedRadius,
     required this.onRadiusChanged,
     required this.title,
-    this.trailing,
   });
 
   static const double _gap = 3;
@@ -19,9 +19,6 @@ class GasStationListHeader extends StatelessWidget {
   final SearchRadius selectedRadius;
   final ValueChanged<SearchRadius> onRadiusChanged;
   final String title;
-
-  /// Commande additionnelle posée à gauche du bouton de rayon.
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -53,62 +50,11 @@ class GasStationListHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) ...[trailing!, const SizedBox(width: 8)],
-        _RadiusButton(
+        SearchRadiusButton(
           selectedRadius: selectedRadius,
           onRadiusChanged: onRadiusChanged,
         ),
       ],
-    );
-  }
-}
-
-class _RadiusButton extends StatelessWidget {
-  const _RadiusButton({
-    required this.selectedRadius,
-    required this.onRadiusChanged,
-  });
-
-  static const double _size = 42;
-  static const double _radius = 12;
-
-  final SearchRadius selectedRadius;
-  final ValueChanged<SearchRadius> onRadiusChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Rayon de recherche : ${selectedRadius.label}',
-      child: PopupMenuButton<SearchRadius>(
-        initialValue: selectedRadius,
-        onSelected: onRadiusChanged,
-        tooltip: 'Changer le rayon de recherche',
-        position: PopupMenuPosition.under,
-        itemBuilder: (context) => [
-          for (final radius in SearchRadius.values)
-            PopupMenuItem<SearchRadius>(
-              value: radius,
-              child: Text(radius.label),
-            ),
-        ],
-        // Le bouton dessine lui-même son fond : le rembourrage par défaut du
-        // PopupMenuButton déborderait du carré de 42 px.
-        padding: EdgeInsets.zero,
-        child: Container(
-          width: _size,
-          height: _size,
-          decoration: BoxDecoration(
-            color: AppColors.surfaceMuted,
-            borderRadius: BorderRadius.circular(_radius),
-          ),
-          child: const Icon(
-            Icons.my_location_rounded,
-            size: 15,
-            color: AppColors.onSurface,
-          ),
-        ),
-      ),
     );
   }
 }

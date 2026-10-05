@@ -17,6 +17,13 @@ void main() {
     );
   }
 
+  /// La page s'ouvre sur la carte : la liste complète se déploie d'un tap sur
+  /// la poignée de la feuille.
+  Future<void> expandList(WidgetTester tester) async {
+    await tester.tap(find.bySemanticsLabel('Afficher la liste'));
+    await tester.pumpAndSettle();
+  }
+
   group('GasStationListPage', () {
     testWidgets('affiche un indicateur puis la liste', (tester) async {
       await pumpPage(
@@ -98,9 +105,63 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await expandList(tester);
 
-      expect(find.textContaining('OpenStreetMap'), findsOneWidget);
+      // La carte en fond crédite aussi OpenStreetMap, pour ses tuiles.
+      expect(
+        find.textContaining('Enseignes : © les contributeurs OpenStreetMap'),
+        findsOneWidget,
+      );
       expect(find.textContaining('data.economie.gouv.fr'), findsOneWidget);
+    });
+
+    // Le glisser n'est pas à la portée du clavier ni d'un lecteur d'écran :
+    // le tap sur la poignée fait passer la feuille d'un bout à l'autre.
+    testWidgets('déploie puis replie la liste d\'un tap sur la poignée', (
+      tester,
+    ) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      double sheetTop() => tester.getTopLeft(find.byType(CustomScrollView)).dy;
+
+      final collapsedTop = sheetTop();
+
+      await expandList(tester);
+
+      expect(sheetTop(), lessThan(collapsedTop));
+
+      await tester.tap(find.bySemanticsLabel('Afficher la carte'));
+      await tester.pumpAndSettle();
+
+      expect(sheetTop(), collapsedTop);
+    });
+
+    // L'artboard « Carte · cartes flottantes » ne pose que deux stations sur
+    // la carte : les suivantes n'apparaissent qu'une fois la liste tirée.
+    testWidgets('ne montre que deux stations sur la carte', (tester) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            buildGasStation(id: 'a', price: 1.70, distanceInKm: 1),
+            buildGasStation(id: 'b', price: 1.75, distanceInKm: 2),
+            buildGasStation(id: 'c', price: 1.80, distanceInKm: 3),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(GasStationCard).hitTestable(), findsNWidgets(2));
+
+      await expandList(tester);
+
+      expect(find.byType(GasStationCard).hitTestable(), findsNWidgets(3));
     });
 
     testWidgets('met en avant la station la moins chère', (tester) async {
@@ -168,10 +229,42 @@ void main() {
       expect(find.byType(GasStationCard), findsOneWidget);
       expect(service.callCount, 1);
 
-      await tester.tap(find.text('SP98'));
+      await expandList(tester);
+
+      await tester.tap(find.text('SP98').hitTestable());
       await tester.pumpAndSettle();
 
       expect(service.callCount, 1);
+      expect(
+        tester.widget<GasStationCard>(find.byType(GasStationCard)).station.id,
+        'sp98',
+      );
+    });
+
+    // Sur la carte, la piste des carburants se resserre en une pastille qui
+    // ouvre un menu.
+    testWidgets('change de carburant depuis la carte', (tester) async {
+      await pumpPage(
+        tester,
+        _FakeGasStationService(
+          stations: [
+            buildGasStation(id: 'e10', price: 1.70, distanceInKm: 1),
+            buildGasStation(
+              id: 'sp98',
+              price: 1.90,
+              distanceInKm: 2,
+              fuel: FuelType.sp98,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('E10').hitTestable());
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('SP98').hitTestable());
+      await tester.pumpAndSettle();
+
       expect(
         tester.widget<GasStationCard>(find.byType(GasStationCard)).station.id,
         'sp98',
@@ -186,7 +279,9 @@ void main() {
       await pumpPage(tester, service);
       await tester.pumpAndSettle();
 
-      await tester.tap(find.byIcon(Icons.my_location_rounded));
+      // Seul le bouton de l'en-tête affiché répond : celui de la liste est
+      // masqué tant que la carte est ouverte.
+      await tester.tap(find.byIcon(Icons.my_location_rounded).hitTestable());
       await tester.pumpAndSettle();
       await tester.tap(find.text('25 km'));
       await tester.pumpAndSettle();
@@ -280,6 +375,7 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+      await expandList(tester);
 
       expect(find.textContaining('Mis à jour à'), findsOneWidget);
     });

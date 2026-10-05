@@ -40,22 +40,28 @@ Marker buildGasStationMarker({
           // =============================
           // PRIX
           // =============================
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: markerColor, width: 2),
-              boxShadow: const [
-                BoxShadow(blurRadius: 4, color: Colors.black26),
-              ],
-            ),
-            child: Text(
-              price == null ? '--' : '${price.toStringAsFixed(3)} €',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: markerColor,
+          // Le marqueur a une taille fixe : avec un texte agrandi par
+          // l'utilisateur, l'étiquette rapetisse plutôt que de passer à la
+          // ligne et déborder.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: markerColor, width: 2),
+                boxShadow: const [
+                  BoxShadow(blurRadius: 4, color: Colors.black26),
+                ],
+              ),
+              child: Text(
+                price == null ? '--' : '${price.toStringAsFixed(3)} €',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: markerColor,
+                ),
               ),
             ),
           ),
