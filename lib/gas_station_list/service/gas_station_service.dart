@@ -8,12 +8,13 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 class GasStationService {
-  /// Les deux dépendances n'existent que pour être remplaçables : en
-  /// production le GPS et Overpass suffisent, un [FixedUserLocator] et un
-  /// [EmptyStationBrandDirectory] permettent de s'en passer ailleurs.
+  /// Les deux dépendances n'existent que pour être remplaçables : un
+  /// [FixedUserLocator] fige la position, et sans source d'enseignes les
+  /// stations s'affichent par leur adresse. L'application branche le relevé
+  /// embarqué, [AssetStationBrandDirectory].
   const GasStationService([
     this._locator = const GeolocatorUserLocator(),
-    this._brands = const OverpassStationBrandDirectory(),
+    this._brands = const EmptyStationBrandDirectory(),
   ]);
 
   final UserLocator _locator;

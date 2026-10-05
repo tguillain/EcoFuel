@@ -1,10 +1,11 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/geo_distance.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/services.dart';
 
 /// Enseigne relevée à un point donné.
 class BrandedLocation {
@@ -21,8 +22,7 @@ class BrandedLocation {
 
 /// Source des enseignes de stations. Le fichier de l'État ne porte aucune
 /// marque : elle vient d'ailleurs, et doit pouvoir être remplacée sans toucher
-/// au reste — par un jeu de données embarqué le jour où Overpass ne suffira
-/// plus.
+/// au reste.
 abstract interface class StationBrandDirectory {
   Future<List<BrandedLocation>> brandsAround({
     required UserCoordinates center,
@@ -30,134 +30,65 @@ abstract interface class StationBrandDirectory {
   });
 }
 
-/// Interroge l'API Overpass d'OpenStreetMap.
+/// Lit les enseignes relevées dans OpenStreetMap et livrées avec
+/// l'application, dans `assets/station_brands.json`.
 ///
-/// Overpass est un service communautaire gratuit dont la charte d'usage
-/// décourage le trafic applicatif : cette implémentation convient au
-/// développement, pas à une mise en production.
-class OverpassStationBrandDirectory implements StationBrandDirectory {
-  const OverpassStationBrandDirectory();
+/// Interroger Overpass à chaque rafraîchissement laissait les stations sans
+/// nom dès que ce service communautaire flanchait, ce qui arrive souvent. Le
+/// relevé embarqué répond tout de suite, hors ligne compris ; il se régénère
+/// avec `dart run tool/generate_station_brands.dart`.
+class AssetStationBrandDirectory implements StationBrandDirectory {
+  AssetStationBrandDirectory({AssetBundle? bundle})
+    : _bundle = bundle ?? rootBundle;
 
-  static const String _endpoint = 'https://overpass-api.de/api/interpreter';
-  static const Duration _timeout = Duration(seconds: 12);
+  static const String assetPath = 'assets/station_brands.json';
 
-  /// Overpass répond souvent 504 quand il est chargé, puis passe au second
-  /// essai : un seul échec suffirait sinon à priver toute la liste d'enseignes.
-  static const int _attempts = 2;
-  static const Duration _retryDelay = Duration(seconds: 2);
+  /// Un degré de latitude vaut environ 111 km partout sur le globe.
+  static const double _kmPerLatitudeDegree = 111.32;
+
+  final AssetBundle _bundle;
+
+  /// Lu et décodé une seule fois : près de 12 000 enseignes.
+  late final Future<List<BrandedLocation>> _all = _load();
 
   @override
   Future<List<BrandedLocation>> brandsAround({
     required UserCoordinates center,
     required SearchRadius radius,
   }) async {
-    for (var attempt = 1; ; attempt++) {
-      try {
-        return await _fetch(center: center, radius: radius);
-      } catch (_) {
-        if (attempt >= _attempts) {
-          rethrow;
-        }
+    final all = await _all;
 
-        await Future<void>.delayed(_retryDelay);
-      }
-    }
+    // Un simple cadre suffit à écarter le reste de la France : le
+    // rapprochement fin, au mètre, revient ensuite à [BrandMatcher]. La marge
+    // garde les enseignes d'une station posée au bord du rayon.
+    final reachKm = radius.inKm + BrandMatcher.toleranceInMeters / 1000;
+    final latitudeSpan = reachKm / _kmPerLatitudeDegree;
+    final longitudeSpan =
+        reachKm /
+        (_kmPerLatitudeDegree * math.cos(center.latitude * math.pi / 180));
+
+    return [
+      for (final location in all)
+        if ((location.latitude - center.latitude).abs() <= latitudeSpan &&
+            (location.longitude - center.longitude).abs() <= longitudeSpan)
+          location,
+    ];
   }
 
-  Future<List<BrandedLocation>> _fetch({
-    required UserCoordinates center,
-    required SearchRadius radius,
-  }) async {
-    final around =
-        'around:${radius.inKm * 1000},${center.latitude},${center.longitude}';
-    final query =
-        '[out:json][timeout:25];'
-        '(node($around)[amenity=fuel];way($around)[amenity=fuel];);'
-        'out tags center;';
-
-    final response = await http
-        .post(Uri.parse(_endpoint), body: {'data': query})
-        .timeout(_timeout);
-
-    if (response.statusCode != 200) {
-      throw Exception('Erreur Overpass : ${response.statusCode}');
-    }
-
-    final Map<String, dynamic> body = jsonDecode(response.body);
-    final List<dynamic> elements = body['elements'] ?? [];
-
-    return elements
-        .map((element) => _toBrandedLocation(element as Map<String, dynamic>))
-        .nonNulls
-        .toList();
-  }
-
-  /// Un nœud porte ses coordonnées directement, un chemin les expose via
-  /// `center` grâce au `out center` de la requête.
-  static BrandedLocation? _toBrandedLocation(Map<String, dynamic> element) {
-    final tags = element['tags'] as Map<String, dynamic>?;
-    final center = element['center'] as Map<String, dynamic>?;
-
-    final brand =
-        tags?['brand'] ?? tags?['operator'] ?? tags?['name'] as Object?;
-    final latitude = _toDouble(element['lat'] ?? center?['lat']);
-    final longitude = _toDouble(element['lon'] ?? center?['lon']);
-
-    if (brand == null || latitude == null || longitude == null) {
-      return null;
-    }
-
-    return BrandedLocation(
-      brand: brand.toString(),
-      latitude: latitude,
-      longitude: longitude,
+  Future<List<BrandedLocation>> _load() async {
+    final Map<String, dynamic> body = jsonDecode(
+      await _bundle.loadString(assetPath),
     );
-  }
+    final List<dynamic> stations = body['stations'] ?? [];
 
-  static double? _toDouble(dynamic value) {
-    if (value is num) {
-      return value.toDouble();
-    }
-
-    return null;
-  }
-}
-
-/// Garde les dernières enseignes obtenues et les ressert quand la source
-/// échoue : la liste se rafraîchit chaque minute, et un seul refus d'Overpass
-/// ferait sinon disparaître les noms de toutes les stations d'un coup.
-///
-/// Des enseignes relevées ailleurs, après un déplacement, sont sans danger :
-/// trop loin des nouvelles stations, elles ne s'y rapprochent pas.
-class CachingStationBrandDirectory implements StationBrandDirectory {
-  CachingStationBrandDirectory(this._source);
-
-  final StationBrandDirectory _source;
-
-  List<BrandedLocation>? _lastBrands;
-
-  @override
-  Future<List<BrandedLocation>> brandsAround({
-    required UserCoordinates center,
-    required SearchRadius radius,
-  }) async {
-    try {
-      final brands = await _source.brandsAround(center: center, radius: radius);
-
-      _lastBrands = brands;
-
-      return brands;
-    } catch (error) {
-      final lastBrands = _lastBrands;
-
-      if (lastBrands == null) {
-        rethrow;
-      }
-
-      debugReportBrandFailure(error);
-
-      return lastBrands;
-    }
+    return [
+      for (final station in stations.cast<List<dynamic>>())
+        BrandedLocation(
+          latitude: (station[0] as num).toDouble(),
+          longitude: (station[1] as num).toDouble(),
+          brand: station[2] as String,
+        ),
+    ];
   }
 }
 

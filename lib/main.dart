@@ -9,10 +9,7 @@ import 'package:flutter/material.dart';
 void main() {
   runApp(
     EcoFuelApp(
-      service: GasStationService(
-        _buildLocator(),
-        CachingStationBrandDirectory(const OverpassStationBrandDirectory()),
-      ),
+      service: GasStationService(_buildLocator(), AssetStationBrandDirectory()),
     ),
   );
 }
