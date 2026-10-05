@@ -27,10 +27,10 @@ class SearchOptionChips<T> extends StatelessWidget {
       children: [
         Text(
           title,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
-            color: AppColors.onSurface,
+            color: context.colors.onSurface,
           ),
         ),
         Wrap(
@@ -43,15 +43,15 @@ class SearchOptionChips<T> extends StatelessWidget {
                 selected: value == selected,
                 onSelected: (_) => onSelected(value),
                 showCheckmark: false,
-                selectedColor: AppColors.onSurface,
-                backgroundColor: AppColors.surfaceMuted,
+                selectedColor: context.colors.selected,
+                backgroundColor: context.colors.surfaceMuted,
                 side: BorderSide.none,
                 shape: const StadiumBorder(),
                 labelStyle: TextStyle(
                   fontWeight: FontWeight.w600,
                   color: value == selected
-                      ? AppColors.onPrimary
-                      : AppColors.onSurfaceSubtle,
+                      ? context.colors.onSelected
+                      : context.colors.onSurfaceSubtle,
                 ),
               ),
           ],

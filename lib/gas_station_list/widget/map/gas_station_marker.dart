@@ -39,7 +39,9 @@ Marker buildGasStationMarker({
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface,
+                // Blanc dans les deux thèmes : le vert foncé et le rouge des
+                // prix deviendraient illisibles sur une étiquette sombre.
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: markerColor, width: 2),
                 boxShadow: const [

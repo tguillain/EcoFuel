@@ -18,24 +18,24 @@ class HeadlinePrice extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               price,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 82,
                 height: .82,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 82 * -0.05,
-                color: AppColors.onSurface,
+                color: context.colors.onSurface,
               ),
             ),
           ),
         ),
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(bottom: 2),
           child: Text(
             '€/L',
             style: TextStyle(
               fontSize: 19,
               fontWeight: FontWeight.w700,
-              color: AppColors.onSurfaceMuted,
+              color: context.colors.onSurfaceMuted,
             ),
           ),
         ),

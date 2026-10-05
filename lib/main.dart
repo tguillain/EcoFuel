@@ -51,6 +51,9 @@ class EcoFuelApp extends StatelessWidget {
       title: 'EcoFuel',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      // Suit le réglage clair / sombre du téléphone.
+      themeMode: ThemeMode.system,
       home: GasStationListPage(service: service),
     );
   }

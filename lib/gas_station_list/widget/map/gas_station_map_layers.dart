@@ -92,6 +92,10 @@ class _GasStationMapLayersState extends State<GasStationMapLayers> {
       zoom: _zoom,
     );
 
+    final String canvas = Theme.of(context).brightness == Brightness.dark
+        ? 'Dark_Gray'
+        : 'Light_Gray';
+
     return FlutterMap(
       mapController: widget.mapController,
       options: MapOptions(
@@ -107,16 +111,17 @@ class _GasStationMapLayersState extends State<GasStationMapLayers> {
         // =============================
         // « Light Gray Canvas » d'Esri : des gris doux et des routes
         // blanches, pour que seuls les prix ressortent, comme sur la
-        // maquette. Les noms de lieux viennent d'une seconde couche, posée
-        // par-dessus. Esri ne dessine pas au-delà du zoom 16 : la carte
-        // agrandit alors les dernières tuiles.
+        // maquette ; en mode sombre, son pendant « Dark Gray Canvas ». Les
+        // noms de lieux viennent d'une seconde couche, posée par-dessus. Esri
+        // ne dessine pas au-delà du zoom 16 : la carte agrandit alors les
+        // dernières tuiles.
         TileLayer(
-          urlTemplate: '$_esriCanvas/World_Light_Gray_Base/$_esriTile',
+          urlTemplate: '$_esriCanvas/World_${canvas}_Base/$_esriTile',
           maxNativeZoom: 16,
           userAgentPackageName: 'com.example.ecofuel',
         ),
         TileLayer(
-          urlTemplate: '$_esriCanvas/World_Light_Gray_Reference/$_esriTile',
+          urlTemplate: '$_esriCanvas/World_${canvas}_Reference/$_esriTile',
           maxNativeZoom: 16,
           userAgentPackageName: 'com.example.ecofuel',
         ),

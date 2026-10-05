@@ -26,7 +26,7 @@ class GasStationListAttribution extends StatelessWidget {
           'Enseignes : © les contributeurs OpenStreetMap',
         ].join(' · '),
         textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 11, color: AppColors.onSurfaceFaint),
+        style: TextStyle(fontSize: 11, color: context.colors.onSurfaceFaint),
       ),
     );
   }

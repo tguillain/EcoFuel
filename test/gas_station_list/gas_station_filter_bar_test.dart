@@ -12,6 +12,7 @@ void main() {
   Future<void> pumpFilterBar(
     WidgetTester tester, {
     double width = 390,
+    ThemeData? theme,
     FuelType selectedFuel = FuelType.e10,
     ValueChanged<GasStationSortCriterion>? onSortChanged,
     ValueChanged<FuelType>? onFuelChanged,
@@ -22,7 +23,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.light,
+        theme: theme ?? AppTheme.light,
         home: Scaffold(
           body: Padding(
             padding: const EdgeInsets.symmetric(horizontal: horizontalPadding),
@@ -80,15 +81,27 @@ void main() {
     testWidgets('marque la sélection par une pastille sombre', (tester) async {
       await pumpFilterBar(tester);
 
-      expect(pillColor(tester, 'E10'), AppColors.onSurface);
-      expect(labelColor(tester, 'E10'), AppColors.onPrimary);
+      expect(pillColor(tester, 'E10'), AppColors.light.selected);
+      expect(labelColor(tester, 'E10'), AppColors.light.onSelected);
 
-      expect(labelColor(tester, 'SP98'), AppColors.onSurfaceMuted);
-      expect(labelColor(tester, 'Distance'), AppColors.onSurfaceSubtle);
-      expect(pillColor(tester, 'SP98'), isNot(AppColors.onSurface));
+      expect(labelColor(tester, 'SP98'), AppColors.light.onSurfaceMuted);
+      expect(labelColor(tester, 'Distance'), AppColors.light.onSurfaceSubtle);
+      expect(pillColor(tester, 'SP98'), isNot(AppColors.light.selected));
 
-      expect(pillColor(tester, 'Prix croissant'), AppColors.onSurface);
-      expect(pillColor(tester, 'Distance'), AppColors.surfaceMuted);
+      expect(pillColor(tester, 'Prix croissant'), AppColors.light.selected);
+      expect(pillColor(tester, 'Distance'), AppColors.light.surfaceMuted);
+    });
+
+    // En sombre, une pastille sélectionnée s'inverse : fond clair, libellé
+    // foncé. Garder le fond de la couleur du texte la rendrait invisible.
+    testWidgets('inverse la pastille sélectionnée en mode sombre', (
+      tester,
+    ) async {
+      await pumpFilterBar(tester, theme: AppTheme.dark);
+
+      expect(pillColor(tester, 'E10'), AppColors.dark.selected);
+      expect(labelColor(tester, 'E10'), AppColors.dark.onSelected);
+      expect(labelColor(tester, 'SP98'), AppColors.dark.onSurfaceMuted);
     });
 
     testWidgets(
@@ -201,8 +214,8 @@ void main() {
       await pumpFilterBar(tester, selectedFuel: FuelType.e85);
 
       expect(find.text('Autres'), findsNothing);
-      expect(pillColor(tester, 'E85'), AppColors.onSurface);
-      expect(labelColor(tester, 'E85'), AppColors.onPrimary);
+      expect(pillColor(tester, 'E85'), AppColors.light.selected);
+      expect(labelColor(tester, 'E85'), AppColors.light.onSelected);
     });
 
     testWidgets('remonte les changements de carburant et de critère', (

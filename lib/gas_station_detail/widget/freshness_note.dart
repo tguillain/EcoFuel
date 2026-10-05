@@ -11,24 +11,20 @@ class FreshnessNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: context.colors.background,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         spacing: 10,
         children: [
-          const Icon(
-            Icons.schedule,
-            size: 16,
-            color: AppColors.onSurfaceSubtle,
-          ),
+          Icon(Icons.schedule, size: 16, color: context.colors.onSurfaceSubtle),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
-                color: AppColors.onSurfaceSubtle,
+                color: context.colors.onSurfaceSubtle,
               ),
             ),
           ),

@@ -22,7 +22,11 @@ class MessageState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 55, color: iconColor ?? AppColors.onSurfaceMuted),
+          Icon(
+            icon,
+            size: 55,
+            color: iconColor ?? context.colors.onSurfaceMuted,
+          ),
           const SizedBox(height: 15),
           Text(
             message,

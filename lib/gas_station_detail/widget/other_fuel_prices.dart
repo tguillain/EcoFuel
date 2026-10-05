@@ -33,19 +33,19 @@ class OtherFuelPrices extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Padding(
+        Padding(
           padding: EdgeInsets.only(bottom: 4),
           child: Text(
             'Autres carburants',
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: AppColors.onSurface,
+              color: context.colors.onSurface,
             ),
           ),
         ),
         for (final (index, fuel) in fuels.indexed) ...[
-          if (index > 0) const Divider(height: 1, color: AppColors.divider),
+          if (index > 0) Divider(height: 1, color: context.colors.divider),
           _FuelPriceRow(
             label: fuel.label,
             price: station.priceFor(fuel),
@@ -79,27 +79,27 @@ class _FuelPriceRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: AppColors.onSurfaceSubtle,
+                color: context.colors.onSurfaceSubtle,
               ),
             ),
           ),
           price != null
               ? Text(
                   '${priceFormat.format(price)} €',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.onSurface,
+                    color: context.colors.onSurface,
                   ),
                 )
-              : const Text(
+              : Text(
                   'Indisponible',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppColors.onSurfaceFaint,
+                    color: context.colors.onSurfaceFaint,
                   ),
                 ),
         ],

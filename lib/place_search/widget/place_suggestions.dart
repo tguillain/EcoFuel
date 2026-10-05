@@ -66,7 +66,7 @@ class _Hint extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: const TextStyle(color: AppColors.onSurfaceMuted),
+        style: TextStyle(color: context.colors.onSurfaceMuted),
       ),
     );
   }

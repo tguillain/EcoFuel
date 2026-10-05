@@ -286,7 +286,9 @@ class _MapListSheetState extends State<MapListSheet> {
               pinned: true,
               delegate: GasStationSheetHandle(
                 isExpanded: _isExpanded,
-                background: AppColors.background.withValues(alpha: _opacity),
+                background: context.colors.background.withValues(
+                  alpha: _opacity,
+                ),
                 onTap: _toggle,
               ),
             ),

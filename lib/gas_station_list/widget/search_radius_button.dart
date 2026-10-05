@@ -57,7 +57,9 @@ class SearchRadiusButton extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: isFloating ? AppColors.surface : AppColors.surfaceMuted,
+            color: isFloating
+                ? context.colors.surface
+                : context.colors.surfaceMuted,
             borderRadius: BorderRadius.circular(
               isFloating ? _floatingRadius : _flatRadius,
             ),
@@ -72,10 +74,10 @@ class SearchRadiusButton extends StatelessWidget {
             child: Text(
               selectedRadius.label,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
-                color: AppColors.onSurface,
+                color: context.colors.onSurface,
               ),
             ),
           ),

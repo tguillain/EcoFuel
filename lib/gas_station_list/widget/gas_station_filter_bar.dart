@@ -53,7 +53,7 @@ class _FuelSelector extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(_trackPadding),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
+        color: context.colors.surfaceMuted,
         borderRadius: BorderRadius.circular(_trackRadius),
       ),
       child: Row(
@@ -68,7 +68,7 @@ class _FuelSelector extends StatelessWidget {
                 // La piste porte déjà un fond : une pastille non sélectionnée
                 // doit rester transparente pour ne pas s'en détacher.
                 background: Colors.transparent,
-                foreground: AppColors.onSurfaceMuted,
+                foreground: context.colors.onSurfaceMuted,
                 onTap: () => onSelected(fuel),
               ),
             ),
@@ -124,7 +124,7 @@ class _OtherFuelsPill extends StatelessWidget {
         radius: radius,
         padding: padding,
         background: Colors.transparent,
-        foreground: AppColors.onSurfaceMuted,
+        foreground: context.colors.onSurfaceMuted,
       ),
     );
   }
@@ -156,7 +156,7 @@ class _SortPills extends StatelessWidget {
             isSelected: criterion == selected,
             radius: _pillRadius,
             padding: _pillPadding,
-            foreground: AppColors.onSurfaceSubtle,
+            foreground: context.colors.onSurfaceSubtle,
             onTap: () => onSelected(criterion),
           ),
       ],
@@ -173,7 +173,7 @@ class _Pill extends StatelessWidget {
     required this.foreground,
     this.onTap,
     this.trailingIcon,
-    this.background = AppColors.surfaceMuted,
+    this.background,
   });
 
   final String label;
@@ -181,7 +181,10 @@ class _Pill extends StatelessWidget {
   final double radius;
   final EdgeInsets padding;
   final Color foreground;
-  final Color background;
+
+  /// Fond d'une pastille non sélectionnée ; par défaut celui des pastilles
+  /// de tri.
+  final Color? background;
 
   /// Absent quand un parent capte déjà le tap, comme un menu.
   final VoidCallback? onTap;
@@ -192,7 +195,7 @@ class _Pill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final borderRadius = BorderRadius.circular(radius);
-    final Color color = isSelected ? AppColors.onPrimary : foreground;
+    final Color color = isSelected ? context.colors.onSelected : foreground;
     final IconData? icon = trailingIcon;
 
     final Widget content = Padding(
@@ -231,7 +234,9 @@ class _Pill extends StatelessWidget {
       button: true,
       selected: isSelected,
       child: Material(
-        color: isSelected ? AppColors.onSurface : background,
+        color: isSelected
+            ? context.colors.selected
+            : background ?? context.colors.surfaceMuted,
         borderRadius: borderRadius,
         child: onTap == null
             ? content

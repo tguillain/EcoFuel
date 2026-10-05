@@ -16,15 +16,15 @@ class ServiceChips extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             decoration: BoxDecoration(
-              color: AppColors.background,
+              color: context.colors.background,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.onSurface,
+                color: context.colors.onSurface,
               ),
             ),
           ),
