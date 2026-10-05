@@ -13,12 +13,24 @@ class GasStation {
     required this.closingTime,
     required this.isClosed,
     this.brand,
+    this.postalCode,
+    this.priceUpdatedAtByFuel = const {},
+    this.services = const [],
   });
 
   final String id;
   final String address;
   final String city;
+  final String? postalCode;
   final Map<FuelType, double?> pricesByFuel;
+
+  /// Date du dernier relevé de chaque prix, pour dire sur la fiche de la
+  /// station si le prix affiché est frais.
+  final Map<FuelType, DateTime?> priceUpdatedAtByFuel;
+
+  /// Services déclarés par la station, dans les libellés de l'État
+  /// (« Station de gonflage », « Lavage automatique »…).
+  final List<String> services;
   final double distanceInKm;
 
   /// Position de la station. Requise : la carte, le calcul d'itinéraire et le
@@ -41,6 +53,8 @@ class GasStation {
 
   double? priceFor(FuelType fuel) => pricesByFuel[fuel];
 
+  DateTime? priceUpdatedAtFor(FuelType fuel) => priceUpdatedAtByFuel[fuel];
+
   /// L'enseigne ne peut être résolue qu'une fois la position connue, donc
   /// après la construction : ce copieur évite de relire le JSON.
   GasStation withBrand(String? brand) => GasStation(
@@ -55,6 +69,9 @@ class GasStation {
     closingTime: closingTime,
     isClosed: isClosed,
     brand: brand,
+    postalCode: postalCode,
+    priceUpdatedAtByFuel: priceUpdatedAtByFuel,
+    services: services,
   );
 
   /// `null` quand la géométrie manque : mieux vaut écarter la station que lui
@@ -83,10 +100,22 @@ class GasStation {
       isOpen24h: openingHours.isOpen24h,
       closingTime: openingHours.closingTime,
       isClosed: openingHours.isClosed,
+      postalCode: json['cp']?.toString(),
       pricesByFuel: {
         for (final fuel in FuelType.values)
           fuel: _toDouble(json[fuel.priceJsonKey]),
       },
+      priceUpdatedAtByFuel: {
+        for (final fuel in FuelType.values)
+          fuel: DateTime.tryParse(
+            json[fuel.updatedAtJsonKey]?.toString() ?? '',
+          ),
+      },
+      services: [
+        if (json['services_service'] is List)
+          for (final service in json['services_service'] as List)
+            service.toString(),
+      ],
     );
   }
 

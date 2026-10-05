@@ -1,4 +1,5 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
+import 'package:ecofuel/gas_station_list/enum/gas_station_sort_criterion.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
 import 'package:ecofuel/gas_station_list/model/geo_distance.dart';
 
@@ -23,6 +24,21 @@ abstract final class GasStationGrouper {
   /// prix identiques qui rendent le regroupement sûr : à 288 m de là
   /// cohabitent un Total et un Esso, que la distance seule fusionnerait.
   static const double maxDistanceInMeters = 700;
+
+  /// Stations proposant [fuel], triées selon [sortCriterion] puis regroupées
+  /// par site — un site déclarant plusieurs points de distribution ne compte
+  /// que pour une carte.
+  static List<GasStationGroup> forDisplay(
+    List<GasStation> stations, {
+    required FuelType fuel,
+    required GasStationSortCriterion sortCriterion,
+  }) {
+    final offered =
+        stations.where((station) => station.priceFor(fuel) != null).toList()
+          ..sort(sortCriterion.comparatorFor(fuel));
+
+    return group(offered, fuel: fuel);
+  }
 
   /// Conserve l'ordre reçu : chaque groupe prend le rang de son meilleur
   /// élément, le tri ayant déjà été appliqué en amont.

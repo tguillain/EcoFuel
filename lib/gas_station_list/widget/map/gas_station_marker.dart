@@ -1,6 +1,5 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
-import 'package:ecofuel/gas_station_list/widget/map/gas_station_details_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -15,7 +14,7 @@ Marker buildGasStationMarker({
   required GasStation station,
   required FuelType fuel,
   required Color markerColor,
-  required VoidCallback onShowRoute,
+  required VoidCallback onTap,
 }) {
   final double? price = station.priceFor(fuel);
 
@@ -24,16 +23,8 @@ Marker buildGasStationMarker({
     width: 108,
     height: 74,
     child: GestureDetector(
-      // Clic sur la station :
-      // affichage de la fiche détaillée.
-      onTap: () {
-        showGasStationDetailsSheet(
-          context: context,
-          station: station,
-          fuel: fuel,
-          onShowRoute: onShowRoute,
-        );
-      },
+      // Clic sur la station : ouverture de sa fiche.
+      onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -1,34 +1,18 @@
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
-import 'package:ecofuel/gas_station_list/gas_station_list_page.dart';
-import 'package:ecofuel/gas_station_list/model/gas_station.dart';
-import 'package:ecofuel/gas_station_list/service/gas_station_service.dart';
-import 'package:ecofuel/gas_station_list/service/user_locator.dart';
 import 'package:ecofuel/gas_station_list/widget/gas_station_card.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'fake_gas_station_service.dart';
 import 'gas_station_fixture.dart';
 
 void main() {
-  Future<void> pumpPage(WidgetTester tester, GasStationService service) async {
-    await tester.pumpWidget(
-      MaterialApp(home: GasStationListPage(service: service)),
-    );
-  }
-
-  /// La page s'ouvre sur la carte : la liste complète se déploie d'un tap sur
-  /// la poignée de la feuille.
-  Future<void> expandList(WidgetTester tester) async {
-    await tester.tap(find.bySemanticsLabel('Afficher la liste'));
-    await tester.pumpAndSettle();
-  }
-
   group('GasStationListPage', () {
     testWidgets('affiche un indicateur puis la liste', (tester) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [
             buildGasStation(id: 'a', price: 1.70, distanceInKm: 1),
             buildGasStation(id: 'b', price: 1.65, distanceInKm: 4),
@@ -49,9 +33,9 @@ void main() {
     testWidgets('désambiguïse deux stations de même enseigne et commune', (
       tester,
     ) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [
             // Deux kilomètres les séparent : trop loin pour être regroupées,
             // assez semblables pour être indiscernables sans leur adresse.
@@ -98,14 +82,14 @@ void main() {
     // La licence ODbL impose de créditer OpenStreetMap dès qu'on affiche les
     // enseignes : les crédits ferment la liste.
     testWidgets('crédite les sources en fin de liste', (tester) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
         ),
       );
       await tester.pumpAndSettle();
-      await expandList(tester);
+      await expandStationList(tester);
 
       // La carte en fond crédite aussi OpenStreetMap, pour ses tuiles.
       expect(
@@ -120,9 +104,9 @@ void main() {
     testWidgets('déploie puis replie la liste d\'un tap sur la poignée', (
       tester,
     ) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
         ),
       );
@@ -132,7 +116,7 @@ void main() {
 
       final collapsedTop = sheetTop();
 
-      await expandList(tester);
+      await expandStationList(tester);
 
       expect(sheetTop(), lessThan(collapsedTop));
 
@@ -145,9 +129,9 @@ void main() {
     // L'artboard « Carte · cartes flottantes » ne pose que deux stations sur
     // la carte : les suivantes n'apparaissent qu'une fois la liste tirée.
     testWidgets('ne montre que deux stations sur la carte', (tester) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [
             buildGasStation(id: 'a', price: 1.70, distanceInKm: 1),
             buildGasStation(id: 'b', price: 1.75, distanceInKm: 2),
@@ -159,15 +143,15 @@ void main() {
 
       expect(find.byType(GasStationCard).hitTestable(), findsNWidgets(2));
 
-      await expandList(tester);
+      await expandStationList(tester);
 
       expect(find.byType(GasStationCard).hitTestable(), findsNWidgets(3));
     });
 
     testWidgets('met en avant la station la moins chère', (tester) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [
             buildGasStation(id: 'chere', price: 1.90, distanceInKm: 1),
             buildGasStation(id: 'moinsChere', price: 1.65, distanceInKm: 4),
@@ -190,11 +174,11 @@ void main() {
     testWidgets('affiche le message d\'erreur et permet de réessayer', (
       tester,
     ) async {
-      final service = _FakeGasStationService(
+      final service = FakeGasStationService(
         error: Exception('La localisation est désactivée.'),
       );
 
-      await pumpPage(tester, service);
+      await pumpGasStationListPage(tester, service);
       await tester.pumpAndSettle();
 
       expect(find.text('La localisation est désactivée.'), findsOneWidget);
@@ -211,7 +195,7 @@ void main() {
     });
 
     testWidgets('change de carburant sans rappeler le service', (tester) async {
-      final service = _FakeGasStationService(
+      final service = FakeGasStationService(
         stations: [
           buildGasStation(id: 'e10', price: 1.70, distanceInKm: 1),
           buildGasStation(
@@ -223,13 +207,13 @@ void main() {
         ],
       );
 
-      await pumpPage(tester, service);
+      await pumpGasStationListPage(tester, service);
       await tester.pumpAndSettle();
 
       expect(find.byType(GasStationCard), findsOneWidget);
       expect(service.callCount, 1);
 
-      await expandList(tester);
+      await expandStationList(tester);
 
       await tester.tap(find.text('SP98').hitTestable());
       await tester.pumpAndSettle();
@@ -244,9 +228,9 @@ void main() {
     // Sur la carte, la piste des carburants se resserre en une pastille qui
     // ouvre un menu.
     testWidgets('change de carburant depuis la carte', (tester) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [
             buildGasStation(id: 'e10', price: 1.70, distanceInKm: 1),
             buildGasStation(
@@ -272,11 +256,11 @@ void main() {
     });
 
     testWidgets('recharge les stations quand le rayon change', (tester) async {
-      final service = _FakeGasStationService(
+      final service = FakeGasStationService(
         stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
       );
 
-      await pumpPage(tester, service);
+      await pumpGasStationListPage(tester, service);
       await tester.pumpAndSettle();
 
       // Seul le bouton de l'en-tête affiché répond : celui de la liste est
@@ -293,9 +277,9 @@ void main() {
     testWidgets('affiche un état vide sans station pour le carburant', (
       tester,
     ) async {
-      await pumpPage(
+      await pumpGasStationListPage(
         tester,
-        _FakeGasStationService(
+        FakeGasStationService(
           stations: [
             buildGasStation(
               id: 'sp98',
@@ -311,118 +295,5 @@ void main() {
       expect(find.byType(GasStationCard), findsNothing);
       expect(find.textContaining('Aucune station'), findsOneWidget);
     });
-
-    testWidgets('recharge les stations chaque minute sans indicateur', (
-      tester,
-    ) async {
-      final service = _FakeGasStationService(
-        stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
-      );
-
-      await pumpPage(tester, service);
-      await tester.pumpAndSettle();
-
-      expect(service.callCount, 1);
-
-      // L'API renvoie une station de plus au passage suivant.
-      service.stations = [
-        ...service.stations,
-        buildGasStation(id: 'b', price: 1.65, distanceInKm: 3),
-      ];
-
-      await tester.pump(const Duration(minutes: 1));
-
-      // Le rafraîchissement est silencieux : la liste reste
-      // à l'écran pendant l'appel, sans tourniquet.
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-
-      await tester.pumpAndSettle();
-
-      expect(service.callCount, 2);
-
-      expect(find.byType(GasStationCard), findsNWidgets(2));
-    });
-
-    testWidgets('garde la liste quand le rafraîchissement échoue', (
-      tester,
-    ) async {
-      final service = _FakeGasStationService(
-        stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
-      );
-
-      await pumpPage(tester, service);
-      await tester.pumpAndSettle();
-
-      service.error = Exception('Erreur API : 503');
-
-      await tester.pump(const Duration(minutes: 1));
-
-      await tester.pumpAndSettle();
-
-      // L'échec de fond ne vide pas l'écran et n'affiche
-      // pas de message d'erreur.
-      expect(find.byType(GasStationCard), findsOneWidget);
-
-      expect(find.textContaining('Erreur API'), findsNothing);
-    });
-
-    testWidgets('affiche l\'heure du dernier chargement', (tester) async {
-      await pumpPage(
-        tester,
-        _FakeGasStationService(
-          stations: [buildGasStation(id: 'a', price: 1.70, distanceInKm: 1)],
-        ),
-      );
-
-      await tester.pumpAndSettle();
-      await expandList(tester);
-
-      expect(find.textContaining('Mis à jour à'), findsOneWidget);
-    });
   });
-}
-
-/// Faux GasStationService utilisé uniquement pendant les tests.
-///
-/// Aucun GPS réel et aucun appel Internet n'est effectué.
-class _FakeGasStationService implements GasStationService {
-  _FakeGasStationService({this.stations = const [], this.error});
-
-  List<GasStation> stations;
-
-  Object? error;
-
-  /// Nombre de fois où les stations
-  /// ont été demandées.
-  int callCount = 0;
-
-  /// Dernier rayon reçu.
-  SearchRadius? lastRadius;
-
-  /// Simule la position GPS de l'utilisateur.
-  @override
-  Future<UserCoordinates> currentCoordinates() async {
-    if (error != null) {
-      throw error!;
-    }
-
-    return const UserCoordinates(latitude: 47.2184, longitude: -1.5536);
-  }
-
-  /// Simule la récupération des stations.
-  @override
-  Future<List<GasStation>> fetchNearbyStations({
-    required SearchRadius radius,
-    UserCoordinates? coordinates,
-  }) async {
-    callCount++;
-
-    lastRadius = radius;
-
-    if (error != null) {
-      throw error!;
-    }
-
-    return stations;
-  }
 }

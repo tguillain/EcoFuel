@@ -1,15 +1,15 @@
 import 'dart:math' as math;
 
+import 'package:ecofuel/gas_station_detail/gas_station_detail_page.dart';
 import 'package:ecofuel/gas_station_list/enum/fuel_type.dart';
 import 'package:ecofuel/gas_station_list/enum/search_radius.dart';
 import 'package:ecofuel/gas_station_list/model/gas_station.dart';
-import 'package:ecofuel/gas_station_list/model/route_result.dart';
 import 'package:ecofuel/gas_station_list/service/route_service.dart';
 import 'package:ecofuel/gas_station_list/service/user_locator.dart';
-import 'package:ecofuel/gas_station_list/widget/map/gas_station_marker.dart';
-import 'package:ecofuel/gas_station_list/widget/map/gas_station_route_panel.dart';
+import 'package:ecofuel/gas_station_list/widget/map/gas_station_map_layers.dart';
+import 'package:ecofuel/gas_station_list/widget/map/gas_station_map_overlays.dart';
+import 'package:ecofuel/gas_station_list/widget/map/map_station_selection.dart';
 import 'package:ecofuel/gas_station_list/widget/map/map_zoom.dart';
-import 'package:ecofuel/gas_station_list/widget/map/station_marker_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -32,6 +32,7 @@ class GasStationMap extends StatefulWidget {
   final UserCoordinates userCoordinates;
   final SearchRadius radius;
 
+  /// Donne à la fiche d'une station la durée du trajet.
   final RouteService routeService;
 
   /// Bords de la carte masqués en ce moment par l'interface posée dessus :
@@ -52,29 +53,39 @@ class GasStationMap extends StatefulWidget {
 class _GasStationMapState extends State<GasStationMap> {
   final MapController _mapController = MapController();
 
-  RouteResult? _route;
-
-  GasStation? _routeDestination;
-
-  bool _isLoadingRoute = false;
-
-  static const String _esriCanvas =
-      'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas';
-
-  /// Esri ordonne ses tuiles ligne avant colonne.
-  static const String _esriTile = 'MapServer/tile/{z}/{y}/{x}';
-
-  /// Hauteur de la carte au dernier rendu.
-  double _height = 0;
+  /// En deçà de ce seuil, un déplacement relève de la dérive du GPS. Recadrer
+  /// la carte à chaque rafraîchissement automatique la rendrait inutilisable.
+  static const double _significantMoveInMetres = 200;
 
   /// Hauteur minimale de la bande où cadrer les stations. Une interface qui
   /// ne laisse qu'un liseré de carte arrête le cadrage plutôt que de
   /// demander une marge plus grande que la carte.
   static const double _minFramedHeight = 120;
 
-  /// Marges de cadrage : [padding] tout autour, plus ce que [covered] masque
-  /// en haut et en bas.
-  EdgeInsets _framePadding(double padding, EdgeInsets covered) {
+  static const double _framePadding = 55;
+
+  /// Hauteur de la carte au dernier rendu.
+  double _height = 0;
+
+  /// Position GPS de l'utilisateur.
+  LatLng get _userPosition =>
+      LatLng(widget.userCoordinates.latitude, widget.userCoordinates.longitude);
+
+  /// Zoom de repli, utilisé tant qu'aucune station n'est affichée.
+  double get _zoom => MapZoom.forRadius(widget.radius);
+
+  MapStationSelection get _selection => MapStationSelection(
+    stations: widget.stations,
+    fuel: widget.fuel,
+    limit: widget.radius.mapStationLimit,
+  );
+
+  /// Marges de cadrage : une marge fixe tout autour, plus ce que l'interface
+  /// masque en haut et en bas au repos.
+  EdgeInsets get _framingPadding {
+    const double padding = _framePadding;
+    final EdgeInsets covered = widget.framingInsets;
+
     final double top = math.min(
       covered.top,
       math.max(0, _height - 2 * padding - _minFramedHeight),
@@ -93,47 +104,12 @@ class _GasStationMapState extends State<GasStationMap> {
     );
   }
 
-  String? _routeError;
-
-  /// En deçà de ce seuil, un déplacement relève de la dérive
-  /// du GPS. Recadrer la carte ou effacer l'itinéraire à chaque
-  /// rafraîchissement automatique la rendrait inutilisable.
-  static const double _significantMoveInMetres = 200;
-
-  /// Position GPS de l'utilisateur.
-  LatLng get _userPosition {
-    return LatLng(
-      widget.userCoordinates.latitude,
-      widget.userCoordinates.longitude,
-    );
-  }
-
-  /// Zoom de repli, utilisé tant qu'aucune
-  /// station n'est affichée.
-  double get _zoom {
-    return MapZoom.forRadius(widget.radius);
-  }
-
-  /// Stations affichables : celles qui ont des
-  /// coordonnées et un prix pour le carburant choisi.
-  List<GasStation> get _visibleStations {
-    return widget.stations
-        .where(
-          (station) =>
-              station.latitude != 0 &&
-              station.longitude != 0 &&
-              station.priceFor(widget.fuel) != null,
-        )
-        .toList();
-  }
-
   /// Cadrage englobant l'utilisateur et ses stations.
   ///
-  /// Remplace le cercle de rayon : la zone couverte se lit
-  /// dans ce que la carte montre, sans poser un disque
-  /// bleu par-dessus les rues.
+  /// Remplace le cercle de rayon : la zone couverte se lit dans ce que la carte
+  /// montre, sans poser un disque bleu par-dessus les rues.
   CameraFit? get _stationsFit {
-    final List<GasStation> stations = _visibleStations;
+    final List<GasStation> stations = _selection.visible;
 
     if (stations.isEmpty) {
       return null;
@@ -146,40 +122,23 @@ class _GasStationMapState extends State<GasStationMap> {
           (station) => LatLng(station.latitude, station.longitude),
         ),
       ]),
-      padding: _framePadding(55, widget.framingInsets),
+      padding: _framingPadding,
       maxZoom: 15,
     );
   }
 
-  /// Stations et leur couleur, de la plus chère à la moins chère.
-  ///
-  /// L'ordre de la liste est l'ordre de dessin : les
-  /// meilleurs prix passent ainsi au-dessus des autres.
-  List<({GasStation station, Color color})> _markerEntries() {
-    final List<GasStation> stations = _visibleStations;
-
-    final List<({GasStation station, Color color})> entries = stations
-        .map(
-          (station) => (
-            station: station,
-            color: StationMarkerColor.forStation(
-              station: station,
-              stations: stations,
-              fuel: widget.fuel,
-            ),
-          ),
-        )
-        .toList();
-
-    entries.sort((a, b) => _priceOf(b.station).compareTo(_priceOf(a.station)));
-
-    return entries;
+  /// Ouvre la fiche de la station, d'où part l'itinéraire Google Maps.
+  void _openDetail(GasStation station) {
+    GasStationDetailPage.open(
+      context,
+      station: station,
+      fuel: widget.fuel,
+      radius: widget.radius,
+      userCoordinates: widget.userCoordinates,
+      isCheapest: station.id == _selection.cheapest?.id,
+      routeService: widget.routeService,
+    );
   }
-
-  /// Prix de la station pour le carburant choisi. Une station sans prix passe
-  /// pour la plus chère, donc sous les autres marqueurs.
-  double _priceOf(GasStation station) =>
-      station.priceFor(widget.fuel) ?? double.infinity;
 
   @override
   void didUpdateWidget(covariant GasStationMap oldWidget) {
@@ -194,31 +153,21 @@ class _GasStationMapState extends State<GasStationMap> {
 
     final bool fuelChanged = oldWidget.fuel != widget.fuel;
 
-    // La feuille repliée prend la hauteur de ses cartes une
-    // fois celles-ci mesurées : la place libre a changé.
+    // La feuille repliée prend la hauteur de ses cartes une fois celles-ci
+    // mesurées : la place libre a changé.
     final bool framingChanged = oldWidget.framingInsets != widget.framingInsets;
 
-    // Lors d'un changement de rayon ou de position,
-    // on supprime l'itinéraire précédent.
-    if (radiusChanged || positionChanged) {
-      _route = null;
-      _routeDestination = null;
-    }
-
-    // Le cadrage suit les stations affichées : changer
-    // de carburant change la liste, donc l'étendue à
-    // montrer. Un itinéraire en cours garde sa vue.
-    if ((radiusChanged || positionChanged || fuelChanged || framingChanged) &&
-        _route == null) {
+    // Le cadrage suit les stations affichées : changer de carburant change la
+    // liste, donc l'étendue à montrer.
+    if (radiusChanged || positionChanged || fuelChanged || framingChanged) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _centerMap();
       });
     }
   }
 
-  /// Vrai si l'utilisateur s'est vraiment déplacé, par
-  /// opposition au tremblement de quelques mètres que renvoie
-  /// un GPS immobile.
+  /// Vrai si l'utilisateur s'est vraiment déplacé, par opposition au
+  /// tremblement de quelques mètres que renvoie un GPS immobile.
   bool _hasMovedSignificantly(UserCoordinates from, UserCoordinates to) {
     final double metres = const Distance().as(
       LengthUnit.Meter,
@@ -242,388 +191,42 @@ class _GasStationMapState extends State<GasStationMap> {
     _mapController.fitCamera(fit);
   }
 
-  /// Calcule la route vers la station sélectionnée.
-  Future<void> _showRoute(GasStation station) async {
-    setState(() {
-      _isLoadingRoute = true;
-      _routeError = null;
-      _routeDestination = station;
-    });
-
-    try {
-      final RouteResult route = await widget.routeService.fetchRoute(
-        start: widget.userCoordinates,
-        destinationLatitude: station.latitude,
-        destinationLongitude: station.longitude,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _route = route;
-        _isLoadingRoute = false;
-      });
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _fitRoute(route);
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _route = null;
-        _isLoadingRoute = false;
-        _routeError = error.toString().replaceFirst('Exception: ', '');
-      });
-    }
-  }
-
-  /// Ajuste automatiquement la caméra
-  /// pour afficher toute la route.
-  void _fitRoute(RouteResult route) {
-    if (route.points.isEmpty) {
-      return;
-    }
-
-    _mapController.fitCamera(
-      CameraFit.bounds(
-        bounds: LatLngBounds.fromPoints(route.points),
-        padding: _framePadding(65, widget.coveredInsets.value),
-      ),
-    );
-  }
-
-  /// Arrête l'itinéraire.
-  void _stopRoute() {
-    setState(() {
-      _route = null;
-      _routeDestination = null;
-      _routeError = null;
-    });
-
-    _centerMap();
-  }
-
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         _height = constraints.maxHeight;
 
-        return _buildMap(context);
+        return Stack(
+          children: [
+            GasStationMapLayers(
+              mapController: _mapController,
+              userPosition: _userPosition,
+              initialZoom: _zoom,
+              initialCameraFit: _stationsFit,
+              markerEntries: _selection.markerEntries,
+              fuel: widget.fuel,
+              coveredInsets: widget.coveredInsets,
+              onStationTap: _openDetail,
+            ),
+
+            // Les commandes suivent la feuille sans reconstruire la carte
+            // entière à chaque image du glisser.
+            Positioned.fill(
+              child: ValueListenableBuilder<EdgeInsets>(
+                valueListenable: widget.coveredInsets,
+                builder: (context, insets, child) =>
+                    Padding(padding: insets, child: child),
+                child: GasStationMapOverlays(
+                  fuel: widget.fuel,
+                  stationLimit: widget.radius.mapStationLimit,
+                  onRecenter: _centerMap,
+                ),
+              ),
+            ),
+          ],
+        );
       },
-    );
-  }
-
-  /// Garde [child] dans la partie de la carte que l'interface ne recouvre
-  /// pas, en suivant la feuille sans reconstruire la carte entière à chaque
-  /// image du glisser.
-  Widget _withinUncovered(Widget child) {
-    return ValueListenableBuilder<EdgeInsets>(
-      valueListenable: widget.coveredInsets,
-      builder: (context, insets, child) =>
-          Padding(padding: insets, child: child),
-      child: child,
-    );
-  }
-
-  Widget _buildMap(BuildContext context) {
-    final List<({GasStation station, Color color})> markerEntries =
-        _markerEntries();
-
-    return Stack(
-      children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: _userPosition,
-            initialZoom: _zoom,
-            initialCameraFit: _stationsFit,
-          ),
-          children: [
-            // =============================
-            // CARTE OPENSTREETMAP
-            // =============================
-            // Fond « Light Gray Canvas » d'Esri : des gris doux et des
-            // routes blanches, pour que seuls les prix ressortent, comme sur
-            // la maquette. Les noms de lieux viennent d'une seconde couche,
-            // posée par-dessus. Esri ne dessine pas au-delà du zoom 16 : la
-            // carte agrandit alors les dernières tuiles.
-            TileLayer(
-              urlTemplate: '$_esriCanvas/World_Light_Gray_Base/$_esriTile',
-              maxNativeZoom: 16,
-              userAgentPackageName: 'com.example.ecofuel',
-            ),
-            TileLayer(
-              urlTemplate: '$_esriCanvas/World_Light_Gray_Reference/$_esriTile',
-              maxNativeZoom: 16,
-              userAgentPackageName: 'com.example.ecofuel',
-            ),
-
-            // =============================
-            // ROUTE
-            // =============================
-            if (_route != null)
-              PolylineLayer(
-                polylines: [
-                  Polyline(
-                    points: _route!.points,
-                    strokeWidth: 6,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ],
-              ),
-
-            // =============================
-            // STATIONS + UTILISATEUR
-            // =============================
-            MarkerLayer(
-              markers: [
-                _buildUserMarker(),
-
-                ...markerEntries.map((entry) {
-                  return buildGasStationMarker(
-                    context: context,
-                    station: entry.station,
-                    fuel: widget.fuel,
-                    markerColor: entry.color,
-                    onShowRoute: () {
-                      _showRoute(entry.station);
-                    },
-                  );
-                }),
-              ],
-            ),
-
-            // La licence des tuiles exige que le crédit reste visible : il
-            // suit le bord de la feuille au lieu de passer dessous.
-            _withinUncovered(
-              RichAttributionWidget(
-                attributions: const [
-                  TextSourceAttribution('Esri, HERE, Garmin'),
-                  TextSourceAttribution('OpenStreetMap contributors'),
-                ],
-              ),
-            ),
-          ],
-        ),
-
-        Positioned.fill(
-          child: _withinUncovered(
-            Stack(
-              children: [
-                // =============================
-                // LÉGENDE DES COULEURS
-                // =============================
-                if (_route == null)
-                  Positioned(
-                    left: 12,
-                    top: 12,
-                    child: _PriceLegend(fuel: widget.fuel),
-                  ),
-
-                // =============================
-                // CHARGEMENT ROUTE
-                // =============================
-                if (_isLoadingRoute)
-                  const Positioned(
-                    top: 15,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Card(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              ),
-                              SizedBox(width: 10),
-                              Text('Calcul de l’itinéraire...'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // =============================
-                // PANNEAU ROUTE
-                // =============================
-                if (_route != null && _routeDestination != null)
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 15,
-                    child: GasStationRoutePanel(
-                      route: _route!,
-                      station: _routeDestination!,
-                      onStop: _stopRoute,
-                    ),
-                  ),
-
-                // =============================
-                // ERREUR ROUTE
-                // =============================
-                if (_routeError != null)
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: 15,
-                    child: _buildRouteError(),
-                  ),
-
-                // =============================
-                // RECENTRER
-                // =============================
-                if (_route == null)
-                  Positioned(
-                    right: 16,
-                    bottom: 22,
-                    child: FloatingActionButton.small(
-                      heroTag: 'mapCenterButton',
-                      tooltip: 'Recentrer',
-                      onPressed: _centerMap,
-                      child: const Icon(Icons.my_location),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Message affiché si le calcul
-  /// d'itinéraire échoue.
-  Widget _buildRouteError() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            const Icon(Icons.error_outline),
-            const SizedBox(width: 10),
-            Expanded(child: Text(_routeError!)),
-            IconButton(
-              onPressed: () {
-                setState(() {
-                  _routeError = null;
-                });
-              },
-              icon: const Icon(Icons.close),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Position de l'utilisateur.
-  Marker _buildUserMarker() {
-    return Marker(
-      point: _userPosition,
-      width: 56,
-      height: 56,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.blue.withValues(alpha: 0.15),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.blue, width: 2),
-        ),
-        child: const Center(
-          child: Icon(Icons.my_location, size: 28, color: Colors.blue),
-        ),
-      ),
-    );
-  }
-}
-
-/// Rappelle ce que signale la couleur d'un marqueur.
-///
-/// Le dégradé est relatif aux stations affichées : la légende en nomme les
-/// deux extrémités, sans prétendre à un prix absolu.
-class _PriceLegend extends StatelessWidget {
-  const _PriceLegend({required this.fuel});
-
-  static const double _barWidth = 104;
-
-  final FuelType fuel;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(9),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: const [BoxShadow(blurRadius: 4, color: Colors.black26)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Prix ${fuel.label}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Container(
-            width: _barWidth,
-            height: 8,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(4),
-              gradient: const LinearGradient(
-                colors: [
-                  StationMarkerColor.cheapest,
-                  StationMarkerColor.middle,
-                  StationMarkerColor.dearest,
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          const SizedBox(
-            width: _barWidth,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              // La barre a une largeur fixe : un texte agrandi par
-              // l'utilisateur s'abrège au lieu de déborder.
-              children: [
-                Flexible(
-                  child: Text(
-                    'Moins cher',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10),
-                  ),
-                ),
-                Flexible(
-                  child: Text(
-                    'Plus cher',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

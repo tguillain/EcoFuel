@@ -15,6 +15,34 @@ void main() {
   };
 
   group('GasStation.fromJson', () {
+    test('lit le code postal, la date des relevés et les services', () {
+      final station = GasStation.fromJson(
+        located({
+          'cp': '44300',
+          'e10_prix': 2.239,
+          'e10_maj': '2026-10-01T09:35:47+00:00',
+          'sp95_maj': null,
+          'services_service': ['Station de gonflage', 'Lavage manuel'],
+        }),
+        now: now,
+      )!;
+
+      expect(station.postalCode, '44300');
+      expect(
+        station.priceUpdatedAtFor(FuelType.e10),
+        DateTime.utc(2026, 10, 1, 9, 35, 47),
+      );
+      expect(station.priceUpdatedAtFor(FuelType.sp95), isNull);
+      expect(station.services, ['Station de gonflage', 'Lavage manuel']);
+    });
+
+    test('se passe des services quand l\'API n\'en déclare aucun', () {
+      final station = GasStation.fromJson(located({}), now: now)!;
+
+      expect(station.services, isEmpty);
+      expect(station.postalCode, isNull);
+    });
+
     test('mappe chaque carburant sur son prix', () {
       final station = GasStation.fromJson(
         located({
