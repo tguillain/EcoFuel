@@ -147,6 +147,7 @@ class _GasStationMapLayersState extends State<GasStationMapLayers> {
                   : buildClusterMarker(
                       cluster: cluster,
                       fuel: widget.fuel,
+                      brightness: Theme.of(context).brightness,
                       onTap: () => _zoomInto(cluster),
                     ),
           ],

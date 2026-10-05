@@ -25,6 +25,25 @@ abstract final class StationMarkerColor {
   /// Station dont le prix est inconnu pour le carburant choisi.
   static const Color unknown = Color.fromRGBO(117, 124, 130, 1);
 
+  /// Gain de luminosité des épingles et des ronds de groupe. Plus fort en
+  /// sombre, où les teintes foncées se perdaient dans le fond de carte.
+  static const double _iconLighteningLight = 0.10;
+  static const double _iconLighteningDark = 0.16;
+
+  /// Teinte d'une épingle ou d'un rond de groupe : [color] éclaircie.
+  ///
+  /// La luminosité monte sans mélanger de blanc, pour garder des couleurs
+  /// vives plutôt que pastel. Le prix écrit sur l'étiquette blanche garde la
+  /// teinte d'origine : éclaircie, elle n'y serait plus lisible.
+  static Color icon(Color color, Brightness brightness) {
+    final double gain = brightness == Brightness.dark
+        ? _iconLighteningDark
+        : _iconLighteningLight;
+    final HSLColor hsl = HSLColor.fromColor(color);
+
+    return hsl.withLightness((hsl.lightness + gain).clamp(0.0, 1.0)).toColor();
+  }
+
   /// En deçà de cet écart entre le prix le plus bas et le plus haut, la liste
   /// est tenue pour uniforme : un dixième de centime ne se lit pas à
   /// l'affichage, et l'étaler sur toute la palette ferait passer pour chère
